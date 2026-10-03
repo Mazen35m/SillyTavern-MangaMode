@@ -1,0 +1,177 @@
+{
+  "_meta": {
+    "id": "L01",
+    "date": "2026-09-23",
+    "model": "illustriousXL_v01.safetensors",
+    "reason": "Regional prompting with ConditioningSetAreaPercentage (built-in): shared prompt + one area per person (left/right 55%). Experiment e1 condition D. Rejected: broken composition, extra people.",
+    "settings": {
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "steps": 28,
+      "cfg": 6,
+      "width": 896,
+      "height": 1152
+    },
+    "status": "rejected"
+  },
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{SEED}}",
+        "steps": 28,
+        "cfg": 6,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "105",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "illustriousXL_v01.safetensors"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 896,
+        "height": 1152,
+        "batch_size": 1
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{SHARED}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "text, speech bubble, dialogue, subtitles, caption, watermark, signature, logo, monochrome, grayscale, screentone, sketch, extra limbs, extra fingers, bad anatomy, worst quality, low quality, jpeg artifacts, blurry",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "mangalab",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    },
+    "100": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 1}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "101": {
+      "class_type": "ConditioningSetAreaPercentage",
+      "inputs": {
+        "conditioning": [
+          "100",
+          0
+        ],
+        "width": 0.55,
+        "height": 1,
+        "x": 0,
+        "y": 0,
+        "strength": 1
+      }
+    },
+    "102": {
+      "class_type": "ConditioningCombine",
+      "inputs": {
+        "conditioning_1": [
+          "6",
+          0
+        ],
+        "conditioning_2": [
+          "101",
+          0
+        ]
+      }
+    },
+    "103": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 2}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "104": {
+      "class_type": "ConditioningSetAreaPercentage",
+      "inputs": {
+        "conditioning": [
+          "103",
+          0
+        ],
+        "width": 0.55,
+        "height": 1,
+        "x": 0.45,
+        "y": 0,
+        "strength": 1
+      }
+    },
+    "105": {
+      "class_type": "ConditioningCombine",
+      "inputs": {
+        "conditioning_1": [
+          "102",
+          0
+        ],
+        "conditioning_2": [
+          "104",
+          0
+        ]
+      }
+    }
+  }
+}

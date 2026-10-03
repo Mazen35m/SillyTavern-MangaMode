@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "id": "000",
+    "date": "2026-09-23",
+    "model": "illustriousXL_v01.safetensors",
+    "reason": "Baseline: the exact graph MangaMode built in image-generator.js (buildComfyWorkflow) at commit d9d7bc2, before any Phase 3/5 workflow changes.",
+    "settings": {"sampler": "euler_ancestral", "scheduler": "karras", "steps": 28, "cfg": 6, "width": 896, "height": 1152, "seed": "random per generation"},
+    "format": "ComfyUI API format. {{POSITIVE}}/{{NEGATIVE}}/{{SEED}} are filled at runtime."
+  },
+  "prompt": {
+    "4": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "illustriousXL_v01.safetensors"}},
+    "5": {"class_type": "EmptyLatentImage", "inputs": {"width": 896, "height": 1152, "batch_size": 1}},
+    "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "{{POSITIVE}}", "clip": ["4", 1]}},
+    "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "{{NEGATIVE}}", "clip": ["4", 1]}},
+    "3": {"class_type": "KSampler", "inputs": {"seed": "{{SEED}}", "steps": 28, "cfg": 6, "sampler_name": "euler_ancestral", "scheduler": "karras", "denoise": 1, "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["5", 0]}},
+    "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
+    "9": {"class_type": "SaveImage", "inputs": {"filename_prefix": "manga", "images": ["8", 0]}}
+  }
+}

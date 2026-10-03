@@ -1,0 +1,16 @@
+{
+    "display_name": "Manga Mode",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [
+        "connection-manager"
+    ],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Mazen35m",
+    "version": "1.0.0-beta",
+    "homePage": "https://github.com/Mazen35m/SillyTavern-MangaMode",
+    "hooks": {
+        "activate": "init"
+    }
+}

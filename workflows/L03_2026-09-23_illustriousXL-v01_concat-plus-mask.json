@@ -1,0 +1,289 @@
+{
+  "_meta": {
+    "id": "L03",
+    "date": "2026-09-23",
+    "model": "illustriousXL_v01.safetensors",
+    "reason": "Per-person concat (001) plus each person chunk again as a half-frame mask at strength 0.5 (0.8 also tested). Experiment e6 on a two-person close-up. Rejected: no improvement over 001, 60% slower (28 s vs 17 s).",
+    "settings": {
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "steps": 28,
+      "cfg": 6,
+      "width": 1024,
+      "height": 1024
+    },
+    "status": "rejected"
+  },
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{SEED}}",
+        "steps": 28,
+        "cfg": 6,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "311",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "illustriousXL_v01.safetensors"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "text, speech bubble, dialogue, subtitles, caption, watermark, signature, logo, monochrome, grayscale, screentone, sketch, extra limbs, extra fingers, bad anatomy, worst quality, low quality, jpeg artifacts, blurry",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "mangalab",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    },
+    "100": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{SHARED}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "101": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 1}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "102": {
+      "class_type": "ConditioningConcat",
+      "inputs": {
+        "conditioning_to": [
+          "100",
+          0
+        ],
+        "conditioning_from": [
+          "101",
+          0
+        ]
+      }
+    },
+    "103": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 2}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "104": {
+      "class_type": "ConditioningConcat",
+      "inputs": {
+        "conditioning_to": [
+          "102",
+          0
+        ],
+        "conditioning_from": [
+          "103",
+          0
+        ]
+      }
+    },
+    "300": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 1}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "301": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 0,
+        "width": 1024,
+        "height": 1024
+      }
+    },
+    "302": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 1,
+        "width": 512,
+        "height": 1024
+      }
+    },
+    "303": {
+      "class_type": "MaskComposite",
+      "inputs": {
+        "destination": [
+          "301",
+          0
+        ],
+        "source": [
+          "302",
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "operation": "add"
+      }
+    },
+    "304": {
+      "class_type": "ConditioningSetMask",
+      "inputs": {
+        "conditioning": [
+          "300",
+          0
+        ],
+        "mask": [
+          "303",
+          0
+        ],
+        "strength": 0.5,
+        "set_cond_area": "default"
+      }
+    },
+    "305": {
+      "class_type": "ConditioningCombine",
+      "inputs": {
+        "conditioning_1": [
+          "104",
+          0
+        ],
+        "conditioning_2": [
+          "304",
+          0
+        ]
+      }
+    },
+    "306": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 2}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "307": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 0,
+        "width": 1024,
+        "height": 1024
+      }
+    },
+    "308": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 1,
+        "width": 512,
+        "height": 1024
+      }
+    },
+    "309": {
+      "class_type": "MaskComposite",
+      "inputs": {
+        "destination": [
+          "307",
+          0
+        ],
+        "source": [
+          "308",
+          0
+        ],
+        "x": 512,
+        "y": 0,
+        "operation": "add"
+      }
+    },
+    "310": {
+      "class_type": "ConditioningSetMask",
+      "inputs": {
+        "conditioning": [
+          "306",
+          0
+        ],
+        "mask": [
+          "309",
+          0
+        ],
+        "strength": 0.5,
+        "set_cond_area": "default"
+      }
+    },
+    "311": {
+      "class_type": "ConditioningCombine",
+      "inputs": {
+        "conditioning_1": [
+          "305",
+          0
+        ],
+        "conditioning_2": [
+          "310",
+          0
+        ]
+      }
+    }
+  }
+}

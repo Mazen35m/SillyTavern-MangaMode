@@ -1,0 +1,162 @@
+{
+  "_about": "Recommended Manga Mode settings (Anima Turbo on an 8 GB card, Gemini 3.8 Flash as story reader). No API keys. See README.md, section 'Recommended settings'.",
+  "mangaMode": {
+    "enabled": false,
+    "autoGenerate": true,
+    "revealTextByDefault": false,
+    "connectionProfileId": "",
+    "comfy": {
+      "url": "http://127.0.0.1:8188",
+      "checkpoint": "",
+      "sampler": "er_sde",
+      "scheduler": "simple",
+      "steps": 10,
+      "cfg": 1,
+      "width": 896,
+      "height": 1152,
+      "negativePrompt": "text, speech bubble, dialogue, subtitles, caption, watermark, signature, logo, monochrome, grayscale, screentone, sketch, extra limbs, extra fingers, bad anatomy, worst quality, low quality, jpeg artifacts, blurry",
+      "family": "split",
+      "unet": "anima-turbo-v1.1.safetensors",
+      "unetDtype": "default",
+      "clip": "qwen_3_06b_base.safetensors",
+      "clipType": "stable_diffusion",
+      "vae": "qwen_image_vae.safetensors",
+      "modelNegative": "score_1, score_2, score_3",
+      "loras": "",
+      "timeoutSeconds": 300
+    },
+    "debug": false,
+    "promptStyle": "natural",
+    "promptPresets": {
+      "tags": {
+        "prefix": "",
+        "suffix": "masterpiece, best quality, colored manhwa style, webtoon illustration, full color, clean digital lineart, cel shading, vibrant colors"
+      },
+      "tags_pony": {
+        "prefix": "score_9, score_8_up, score_7_up, score_6_up",
+        "suffix": "colored manhwa style, webtoon illustration, full color, clean digital lineart, cel shading, vibrant colors"
+      },
+      "natural": {
+        "prefix": "masterpiece, best quality, score_7, A colored webtoon manhwa illustration.",
+        "suffix": "Clean digital lineart, cel shading, vibrant full color."
+      }
+    },
+    "showSpeechBubbles": true,
+    "sceneContext": true,
+    "maxPanels": 6,
+    "fullBleedCooldown": 10,
+    "splitDialogueThreshold": 5,
+    "modelProfiles": [
+      {
+        "id": "illustrious-xl-v01",
+        "name": "Illustrious-XL v0.1 (tags)",
+        "promptStyle": "tags",
+        "generation": {
+          "family": "checkpoint",
+          "checkpoint": "illustriousXL_v01.safetensors",
+          "unet": "",
+          "unetDtype": "default",
+          "clip": "",
+          "clipType": "stable_diffusion",
+          "vae": "",
+          "sampler": "euler_ancestral",
+          "scheduler": "karras",
+          "steps": 28,
+          "cfg": 6,
+          "width": 896,
+          "height": 1152,
+          "modelNegative": ""
+        },
+        "notes": "Original setup. Workflow family: checkpoint (workflows/000, 001).",
+        "promptPreset": {
+          "prefix": "",
+          "suffix": "masterpiece, best quality, colored manhwa style, webtoon illustration, full color, clean digital lineart, cel shading, vibrant colors"
+        }
+      },
+      {
+        "id": "one-obsession-v24",
+        "name": "One Obsession v24 (tags)",
+        "promptStyle": "tags",
+        "generation": {
+          "family": "checkpoint",
+          "checkpoint": "oneObsession_v24.safetensors",
+          "unet": "",
+          "unetDtype": "default",
+          "clip": "",
+          "clipType": "stable_diffusion",
+          "vae": "",
+          "sampler": "euler_ancestral",
+          "scheduler": "karras",
+          "steps": 28,
+          "cfg": 5,
+          "width": 896,
+          "height": 1152,
+          "modelNegative": "worst quality, normal quality, anatomical nonsense, bad anatomy, interlocked fingers, extra fingers, simple background, transparent"
+        },
+        "notes": "Illustrious fine-tune, CLIP text encoder. Creator's recommended quality tags. ~17/27 on the benchmark; kept installed as a profile, not adopted as default.",
+        "promptPreset": {
+          "prefix": "",
+          "suffix": "masterpiece, best quality, amazing quality, very awa, absurdres, newest, very aesthetic, highres, colored manhwa style, webtoon illustration"
+        }
+      },
+      {
+        "id": "anima-turbo-v11",
+        "name": "Anima Turbo v1.1 (natural)",
+        "promptStyle": "natural",
+        "generation": {
+          "family": "split",
+          "checkpoint": "",
+          "unet": "anima-turbo-v1.1.safetensors",
+          "unetDtype": "default",
+          "clip": "qwen_3_06b_base.safetensors",
+          "clipType": "stable_diffusion",
+          "vae": "qwen_image_vae.safetensors",
+          "sampler": "er_sde",
+          "scheduler": "simple",
+          "steps": 10,
+          "cfg": 1,
+          "width": 896,
+          "height": 1152,
+          "modelNegative": "score_1, score_2, score_3"
+        },
+        "notes": "Qwen3 language-model text encoder binds attributes to the named person. Adopted as the default profile: 25/27 on the benchmark, 5.8s/panel, 5.4GB VRAM staged. Workflow 003.",
+        "promptPreset": {
+          "prefix": "masterpiece, best quality, score_7, safe. A colored webtoon manhwa illustration.",
+          "suffix": "Clean digital lineart, cel shading, vibrant full color."
+        }
+      }
+    ],
+    "activeProfileId": "anima-turbo-v11",
+    "maxImages": 10,
+    "parserReasoning": "minimal",
+    "innerThoughts": true,
+    "detailPass": true,
+    "characterReference": true,
+    "referenceLora": "anima-incontext-character.safetensors",
+    "referenceLoraStrength": 0.5,
+    "referenceStrength": 1,
+    "qualityCheck": true,
+    "visionModel": "google/gemini-3.8-flash",
+    "maxRedraws": 2,
+    "customWorkflow": {
+      "enabled": false,
+      "name": "",
+      "userChoice": false
+    },
+    "ipAdapterStrength": 0.6,
+    "faceTouchUp": false
+  },
+  "mangaParserConnectionProfile": {
+    "mode": "cc",
+    "exclude": [],
+    "api": "openrouter",
+    "preset": "Default",
+    "model": "google/gemini-3.8-flash",
+    "proxy": "None",
+    "stop-strings": "[]",
+    "start-reply-with": "",
+    "reasoning-template": "Think XML",
+    "prompt-post-processing": "none",
+    "name": "Manga Parser"
+  }
+}

@@ -1,0 +1,243 @@
+{
+  "_meta": {
+    "id": "L02",
+    "date": "2026-09-23",
+    "model": "illustriousXL_v01.safetensors",
+    "reason": "Regional prompting with SolidMask+MaskComposite+ConditioningSetMask strength 1 (built-in). Experiment e1 condition E. Rejected: people merged/cropped, identities lost.",
+    "settings": {
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "steps": 28,
+      "cfg": 6,
+      "width": 896,
+      "height": 1152
+    },
+    "status": "rejected"
+  },
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{SEED}}",
+        "steps": 28,
+        "cfg": 6,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "111",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "illustriousXL_v01.safetensors"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 896,
+        "height": 1152,
+        "batch_size": 1
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{SHARED}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "text, speech bubble, dialogue, subtitles, caption, watermark, signature, logo, monochrome, grayscale, screentone, sketch, extra limbs, extra fingers, bad anatomy, worst quality, low quality, jpeg artifacts, blurry",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "mangalab",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    },
+    "100": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 1}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "101": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 0,
+        "width": 896,
+        "height": 1152
+      }
+    },
+    "102": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 1,
+        "width": 448,
+        "height": 1152
+      }
+    },
+    "103": {
+      "class_type": "MaskComposite",
+      "inputs": {
+        "destination": [
+          "101",
+          0
+        ],
+        "source": [
+          "102",
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "operation": "add"
+      }
+    },
+    "104": {
+      "class_type": "ConditioningSetMask",
+      "inputs": {
+        "conditioning": [
+          "100",
+          0
+        ],
+        "mask": [
+          "103",
+          0
+        ],
+        "strength": 1,
+        "set_cond_area": "default"
+      }
+    },
+    "105": {
+      "class_type": "ConditioningCombine",
+      "inputs": {
+        "conditioning_1": [
+          "6",
+          0
+        ],
+        "conditioning_2": [
+          "104",
+          0
+        ]
+      }
+    },
+    "106": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 2}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "107": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 0,
+        "width": 896,
+        "height": 1152
+      }
+    },
+    "108": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 1,
+        "width": 448,
+        "height": 1152
+      }
+    },
+    "109": {
+      "class_type": "MaskComposite",
+      "inputs": {
+        "destination": [
+          "107",
+          0
+        ],
+        "source": [
+          "108",
+          0
+        ],
+        "x": 448,
+        "y": 0,
+        "operation": "add"
+      }
+    },
+    "110": {
+      "class_type": "ConditioningSetMask",
+      "inputs": {
+        "conditioning": [
+          "106",
+          0
+        ],
+        "mask": [
+          "109",
+          0
+        ],
+        "strength": 1,
+        "set_cond_area": "default"
+      }
+    },
+    "111": {
+      "class_type": "ConditioningCombine",
+      "inputs": {
+        "conditioning_1": [
+          "105",
+          0
+        ],
+        "conditioning_2": [
+          "110",
+          0
+        ]
+      }
+    }
+  }
+}

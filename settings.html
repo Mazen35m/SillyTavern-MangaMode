@@ -1,0 +1,254 @@
+<div class="manga_mode_settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Manga Mode</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+
+            <label class="checkbox_label" for="manga_enabled">
+                <input id="manga_enabled" type="checkbox" class="checkbox">
+                <span>Enable Manga Mode</span>
+            </label>
+            <label class="checkbox_label" for="manga_auto_generate">
+                <input id="manga_auto_generate" type="checkbox" class="checkbox">
+                <span>Draw every new reply automatically</span>
+                <i class="fa-solid fa-info-circle" title="Only applies to messages generated during this session. Older messages get a manual 'Generate manga panel' button instead."></i>
+            </label>
+
+            <h4>Pictures</h4>
+            <div class="flex-container alignItemsCenter">
+                <label for="manga_max_images" class="flex1" title="The most pictures drawn for one reply. Each one is one ComfyUI image (about 6 s on an RTX 3070 with Anima Turbo). Type any number: 2, 3, 5, 10 ... Crops are free and not counted.">Frames per reply (up to)</label>
+                <input id="manga_max_images" type="number" min="1" max="16" class="text_pole wide100p flex1">
+            </div>
+            <label class="checkbox_label" for="manga_quality_check">
+                <input id="manga_quality_check" type="checkbox" class="checkbox">
+                <span>Quality check: look at every picture and redraw bad ones</span>
+                <i class="fa-solid fa-info-circle" title="A vision model compares each finished picture with its frame: every main figure present once, matching their look and outfit, no lettering, no floating heads or extra limbs. A picture that fails is redrawn with a new seed and the best attempt is kept. About $0.001 per check."></i>
+            </label>
+            <div class="flex-container alignItemsCenter" id="manga_redraws_row">
+                <label for="manga_max_redraws" class="flex1" title="How many times a bad picture may be redrawn. 0 = never redraw.">Redraws per picture (up to)</label>
+                <input id="manga_max_redraws" type="number" min="0" max="5" class="text_pole wide100p flex1">
+            </div>
+
+            <h4>Look and reading</h4>
+            <label class="checkbox_label" for="manga_webtoon_mode">
+                <input id="manga_webtoon_mode" type="checkbox" class="checkbox">
+                <span>Webtoon mode: one continuous scroll, no pages</span>
+                <i class="fa-solid fa-info-circle" title="Every moment of the reply is its own full-width picture, one under the other, like a webtoon on a phone. Pages you already have are shown in the new style at once; new replies are planned as a scroll."></i>
+            </label>
+            <label class="checkbox_label" for="manga_player_pov">
+                <input id="manga_player_pov" type="checkbox" class="checkbox">
+                <span>First-person view: you are never drawn</span>
+                <i class="fa-solid fa-info-circle" title="Every frame is seen through your character's eyes. You never appear; people who talk to you look at the reader, and what your hands do is drawn from the bottom edge of the picture."></i>
+            </label>
+            <label class="checkbox_label" for="manga_show_bubbles">
+                <input id="manga_show_bubbles" type="checkbox" class="checkbox">
+                <span>Speech bubbles on the pictures</span>
+            </label>
+            <label class="checkbox_label" for="manga_inner_thoughts">
+                <input id="manga_inner_thoughts" type="checkbox" class="checkbox">
+                <span>Inner-thought balloons (dotted)</span>
+                <i class="fa-solid fa-info-circle" title="Where the narration says what a character feels but does not say it, the director may add a very short first-person thought, drawn as a dotted balloon. At most 2 per reply."></i>
+            </label>
+            <label class="checkbox_label" for="manga_reveal_default">
+                <input id="manga_reveal_default" type="checkbox" class="checkbox">
+                <span>Show the written text under the pictures by default</span>
+            </label>
+
+            <h4>Story reader (LLM)</h4>
+            <small>The model that turns a finished roleplay message into frames. It never writes new story content. Pick one of your SillyTavern Connection Profiles.</small>
+            <select id="manga_connection_profile" class="text_pole"></select>
+
+            <h4>Image model (ComfyUI)</h4>
+            <label for="manga_comfy_url">ComfyUI address</label>
+            <input id="manga_comfy_url" class="text_pole" type="text" placeholder="http://127.0.0.1:8188">
+
+            <label for="manga_prompt_style">How prompts are written (pick your image model)</label>
+            <select id="manga_prompt_style" class="text_pole">
+                <option value="tags">SDXL, Illustrious, NoobAI - tag list</option>
+                <option value="tags_pony">Pony - tag list with score prefix</option>
+                <option value="natural">Flux, Qwen-Image, Z-Image, Anima - sentences</option>
+            </select>
+            <small id="manga_prompt_style_hint"></small>
+
+            <label for="manga_custom_workflow_name">Workflow</label>
+            <div class="flex-container">
+                <select id="manga_custom_workflow_name" class="text_pole flex1"></select>
+                <div id="manga_custom_workflow_refresh" class="menu_button" title="Look for your saved ComfyUI workflows again"><i class="fa-solid fa-sync"></i></div>
+            </div>
+            <small id="manga_custom_workflow_status"></small>
+
+            <details class="manga_group" id="manga_advanced">
+                <summary>Advanced settings</summary>
+
+                <h4>Story reading</h4>
+                <div class="flex-container alignItemsCenter">
+                    <label for="manga_max_panels" class="flex1" title="Panels = the boxes of a page. The number of frames above still caps the pictures.">Most panels per reply</label>
+                    <input id="manga_max_panels" type="number" min="1" max="10" class="text_pole wide100p flex1">
+                </div>
+                <label class="checkbox_label" for="manga_scene_context">
+                    <input id="manga_scene_context" type="checkbox" class="checkbox">
+                    <span>Give the reader your last message as context</span>
+                    <i class="fa-solid fa-info-circle" title="So a panel shows what you are physically doing (still holding her hand while running) and keeps who/where continuity. The panel still depicts the reply."></i>
+                </label>
+                <div class="flex-container alignItemsCenter">
+                    <label for="manga_parser_reasoning" class="flex1" title="How much hidden 'thinking' the reader model may do. Thinking is billed as output; minimal is enough for this task.">Reader thinking</label>
+                    <select id="manga_parser_reasoning" class="text_pole flex1">
+                        <option value="minimal">Minimal (cheapest)</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="default">Model default</option>
+                    </select>
+                </div>
+                <label for="manga_vision_model" title="Used when the reader's profile goes through OpenRouter.">Quality-check model (OpenRouter id)</label>
+                <input id="manga_vision_model" class="text_pole" type="text" placeholder="google/gemini-3.8-flash">
+                <label class="checkbox_label" for="manga_show_cost">
+                    <input id="manga_show_cost" type="checkbox" class="checkbox">
+                    <span>Show what each reply cost</span>
+                    <i class="fa-solid fa-info-circle" title="A line under each page: what the Manga Mode LLM calls of that reply cost (reader, world book, picture checks) and the chat's total. The roleplay reply itself is not included. ComfyUI is local and free."></i>
+                </label>
+                <label class="checkbox_label" for="manga_debug">
+                    <input id="manga_debug" type="checkbox" class="checkbox">
+                    <span>Debug info under each page (scene + prompts)</span>
+                </label>
+                <div class="flex-container">
+                    <div id="manga_show_world" class="menu_button menu_button_icon" title="Show this chat's world book"><i class="fa-solid fa-book-open"></i><span>World book</span></div>
+                    <div id="manga_rebuild_world" class="menu_button menu_button_icon" title="Read the card, persona and lorebook again"><i class="fa-solid fa-rotate"></i><span>Rebuild it</span></div>
+                </div>
+                <small>The world book is written once per chat from the card, persona and lorebook: how this world looks and a fixed look for every named person.</small>
+
+                <h4>Prompt text</h4>
+                <small>Added around every prompt, for the way of writing chosen above.</small>
+                <label for="manga_prompt_prefix">Start</label>
+                <textarea id="manga_prompt_prefix" class="text_pole textarea_compact" rows="1"></textarea>
+                <label for="manga_prompt_suffix">End (style tags)</label>
+                <textarea id="manga_prompt_suffix" class="text_pole textarea_compact" rows="2"></textarea>
+                <label for="manga_comfy_negative">Negative prompt</label>
+                <textarea id="manga_comfy_negative" class="text_pole textarea_compact" rows="2"></textarea>
+
+                <h4>Picture size and speed</h4>
+                <div class="flex-container">
+                    <div class="flex1">
+                        <label for="manga_comfy_width">Width</label>
+                        <input id="manga_comfy_width" class="text_pole" type="number" min="256" max="2048" step="64">
+                    </div>
+                    <div class="flex1">
+                        <label for="manga_comfy_height">Height</label>
+                        <input id="manga_comfy_height" class="text_pole" type="number" min="256" max="2048" step="64">
+                    </div>
+                </div>
+                <small>The default size suits an 8 GB graphics card. Raise it only if your ComfyUI can take it.</small>
+                <div class="flex-container alignItemsCenter">
+                    <label for="manga_comfy_timeout" class="flex1" title="Longest one picture may take before it is retried once.">Time limit per picture (s)</label>
+                    <input id="manga_comfy_timeout" type="number" min="30" max="1800" class="text_pole wide100p flex1">
+                </div>
+
+                <h4>Model profile</h4>
+                <small>One saved setup per image model (files, sampler, prompt style, model-specific negatives). Choosing one fills in the fields here and the prompt style above.</small>
+                <div class="flex-container">
+                    <select id="manga_model_profile" class="text_pole flex1"></select>
+                    <div id="manga_model_profile_save" class="menu_button" title="Save the current settings into the selected profile"><i class="fa-solid fa-floppy-disk"></i></div>
+                    <div id="manga_model_profile_new" class="menu_button" title="Save the current settings as a new profile"><i class="fa-solid fa-plus"></i></div>
+                </div>
+                <label for="manga_comfy_model_negative">Model-specific negative terms</label>
+                <textarea id="manga_comfy_model_negative" class="text_pole textarea_compact" rows="1" placeholder="e.g. score_1, score_2, score_3 for Anima"></textarea>
+
+                <div id="manga_builtin_fields">
+                    <h4>Built-in workflow</h4>
+                    <small>Only used when "Workflow" above is set to the built-in one. A workflow of your own brings its own model, LoRAs and sampler.</small>
+                    <label for="manga_comfy_family">Model files</label>
+                    <select id="manga_comfy_family" class="text_pole">
+                        <option value="checkpoint">One checkpoint file (SDXL, Illustrious, NoobAI, Pony)</option>
+                        <option value="split">Separate files: model + text encoder + VAE (Anima, Flux, Qwen-Image)</option>
+                    </select>
+
+                    <div id="manga_checkpoint_fields">
+                        <label for="manga_comfy_checkpoint">Checkpoint file</label>
+                        <div class="flex-container">
+                            <input id="manga_comfy_checkpoint" class="text_pole flex1" type="text" list="manga_comfy_checkpoint_list" placeholder="e.g. illustriousXL_v01.safetensors">
+                            <datalist id="manga_comfy_checkpoint_list"></datalist>
+                            <div id="manga_comfy_fetch_models" class="menu_button" title="Fetch the checkpoint list from ComfyUI"><i class="fa-solid fa-sync"></i></div>
+                        </div>
+                    </div>
+
+                    <div id="manga_split_fields">
+                        <label for="manga_comfy_unet">Diffusion model (models/diffusion_models)</label>
+                        <input id="manga_comfy_unet" class="text_pole" type="text" placeholder="e.g. anima-base-v1.0.safetensors">
+                        <div class="flex-container">
+                            <div class="flex1">
+                                <label for="manga_comfy_clip">Text encoder (models/text_encoders)</label>
+                                <input id="manga_comfy_clip" class="text_pole" type="text" placeholder="e.g. qwen_3_06b_base.safetensors">
+                            </div>
+                            <div class="flex1">
+                                <label for="manga_comfy_clip_type">Encoder type</label>
+                                <input id="manga_comfy_clip_type" class="text_pole" type="text" placeholder="stable_diffusion">
+                            </div>
+                        </div>
+                        <label for="manga_comfy_unet_dtype">Weight type</label>
+                        <select id="manga_comfy_unet_dtype" class="text_pole">
+                            <option value="default">default</option>
+                            <option value="fp8_e4m3fn">fp8_e4m3fn</option>
+                            <option value="fp8_e4m3fn_fast">fp8_e4m3fn_fast</option>
+                            <option value="fp8_e5m2">fp8_e5m2</option>
+                        </select>
+                    </div>
+
+                    <label for="manga_comfy_vae">VAE file (needed for separate files; optional for a checkpoint)</label>
+                    <input id="manga_comfy_vae" class="text_pole" type="text" placeholder="leave empty to use the checkpoint's own VAE">
+
+                    <label for="manga_comfy_loras">LoRAs - file:strength, comma separated</label>
+                    <input id="manga_comfy_loras" class="text_pole" type="text" placeholder="e.g. my_style.safetensors:0.6">
+
+                    <div class="flex-container">
+                        <div class="flex1">
+                            <label for="manga_comfy_sampler">Sampler</label>
+                            <input id="manga_comfy_sampler" class="text_pole" type="text">
+                        </div>
+                        <div class="flex1">
+                            <label for="manga_comfy_scheduler">Scheduler</label>
+                            <input id="manga_comfy_scheduler" class="text_pole" type="text">
+                        </div>
+                    </div>
+                    <div class="flex-container">
+                        <div class="flex1">
+                            <label for="manga_comfy_steps">Steps</label>
+                            <input id="manga_comfy_steps" class="text_pole" type="number" min="1" max="150">
+                        </div>
+                        <div class="flex1">
+                            <label for="manga_comfy_cfg">CFG</label>
+                            <input id="manga_comfy_cfg" class="text_pole" type="number" min="1" max="30" step="0.5">
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <details class="manga_group" id="manga_strong_gpu">
+                <summary>For strong GPUs (slower, better consistency)</summary>
+                <small>Everything here costs extra drawing time. Leave it off on a small graphics card.</small>
+                <label class="checkbox_label" for="manga_detail_pass" title="Close-ups are cut from a larger picture; this redraws them at full resolution so faces stay sharp. Needs ComfyUI-Easy-Use.">
+                    <input id="manga_detail_pass" type="checkbox" class="checkbox">
+                    <span>Detail pass on close-ups (sharper faces, about 5 s each)</span>
+                </label>
+                <label class="checkbox_label" for="manga_character_reference" title="Each known character gets a reference picture once; frames showing them are drawn from it so faces, hair and clothes stay the same. A custom workflow needs an IP-Adapter with %reference%; the built-in workflow needs the comfyui-anima-incontext nodes and the in-context LoRA.">
+                    <input id="manga_character_reference" type="checkbox" class="checkbox">
+                    <span>Character reference pictures (about 3x slower per frame)</span>
+                </label>
+                <div id="manga_reference_fields">
+                    <label for="manga_reference_lora">In-context LoRA file (built-in workflow only)</label>
+                    <input id="manga_reference_lora" class="text_pole" type="text" placeholder="anima-incontext-character.safetensors">
+                    <label for="manga_ip_adapter_strength" id="manga_ip_row">Reference strength in your own workflow (IP-Adapter): <span id="manga_ip_adapter_strength_value"></span></label>
+                    <input id="manga_ip_adapter_strength" type="range" min="0" max="1.2" step="0.05">
+                    <small>0.6 keeps faces and clothes; higher also copies the reference picture's pose and background.</small>
+                    <button id="manga_reset_references" class="menu_button" type="button" title="Draw new reference pictures for every character next time">Redraw reference pictures</button>
+                </div>
+                <label class="checkbox_label" for="manga_face_touch_up" title="In a frame with two or more people, each face is redrawn lightly from that person's reference picture and blended back. Needs character reference pictures and an IP-Adapter workflow.">
+                    <input id="manga_face_touch_up" type="checkbox" class="checkbox">
+                    <span>Match faces in frames with several people (about +1 minute per page)</span>
+                </label>
+            </details>
+
+            <div class="margin-bot-10px"></div>
+        </div>
+    </div>
+</div>

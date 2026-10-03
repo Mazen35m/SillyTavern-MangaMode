@@ -1,0 +1,176 @@
+{
+ "1": {
+  "inputs": {
+   "seed": 123456789,
+   "steps": 10,
+   "cfg": 1,
+   "sampler_name": "er_sde",
+   "scheduler": "simple",
+   "denoise": 1,
+   "model": [
+    "21",
+    0
+   ],
+   "positive": [
+    "4",
+    0
+   ],
+   "negative": [
+    "5",
+    0
+   ],
+   "latent_image": [
+    "3",
+    0
+   ]
+  },
+  "class_type": "KSampler",
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "2": {
+  "inputs": {
+   "unet_name": "anima-turbo-v1.1.safetensors",
+   "weight_dtype": "default"
+  },
+  "class_type": "UNETLoader",
+  "_meta": {
+   "title": "\u062a\u062d\u0645\u064a\u0644 \u0646\u0645\u0648\u0630\u062c \u0627\u0644\u0627\u0646\u062a\u0634\u0627\u0631"
+  }
+ },
+ "3": {
+  "inputs": {
+   "width": 896,
+   "height": 1152,
+   "batch_size": 1
+  },
+  "class_type": "EmptyLatentImage",
+  "_meta": {
+   "title": "\u0635\u0648\u0631\u0629 \u0643\u0627\u0645\u0646\u0629 \u0641\u0627\u0631\u063a\u0629"
+  }
+ },
+ "4": {
+  "inputs": {
+   "text": "%prompt%",
+   "clip": [
+    "8",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "\u062a\u0631\u0645\u064a\u0632 \u0646\u0635 CLIP (\u0623\u0645\u0631)"
+  }
+ },
+ "5": {
+  "inputs": {
+   "text": "%negative%",
+   "clip": [
+    "8",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "\u062a\u0631\u0645\u064a\u0632 \u0646\u0635 CLIP (\u0623\u0645\u0631)"
+  }
+ },
+ "6": {
+  "inputs": {
+   "samples": [
+    "1",
+    0
+   ],
+   "vae": [
+    "9",
+    0
+   ]
+  },
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "\u0641\u0643 \u062a\u0631\u0645\u064a\u0632 VAE"
+  }
+ },
+ "7": {
+  "inputs": {
+   "filename_prefix": "manga",
+   "images": [
+    "6",
+    0
+   ]
+  },
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "\u062d\u0641\u0638 \u0627\u0644\u0635\u0648\u0631\u0629"
+  }
+ },
+ "8": {
+  "inputs": {
+   "clip_name": "qwen_3_06b_base.safetensors",
+   "type": "stable_diffusion",
+   "device": "default"
+  },
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "\u062a\u062d\u0645\u064a\u0644 CLIP"
+  }
+ },
+ "9": {
+  "inputs": {
+   "vae_name": "qwen_image_vae.safetensors"
+  },
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "\u062a\u062d\u0645\u064a\u0644 VAE"
+  }
+ },
+ "20": {
+  "class_type": "AnimaIPAdapterLoader",
+  "inputs": {
+   "ip_adapter_name": "ip_adapter-Character_Reference-10.safetensors",
+   "auto_download": true
+  },
+  "_meta": {
+   "title": "Anima IP-Adapter Loader"
+  }
+ },
+ "22": {
+  "class_type": "easy loadImageBase64",
+  "inputs": {
+   "base64_data": "%reference%",
+   "image_output": "Hide",
+   "save_prefix": "mm_ref"
+  },
+  "_meta": {
+   "title": "MangaMode character reference (%reference%)"
+  }
+ },
+ "21": {
+  "class_type": "AnimaIPAdapterApply",
+  "inputs": {
+   "model": [
+    "2",
+    0
+   ],
+   "ip_adapter": [
+    "20",
+    0
+   ],
+   "ref_image": [
+    "22",
+    0
+   ],
+   "strength": 0.6,
+   "ref_image_size": 512,
+   "siglip_layer": -1,
+   "ip_cfg_scale": 1.0,
+   "ip_cfg_separate": false,
+   "gray_null": false,
+   "use_lora": true
+  },
+  "_meta": {
+   "title": "Anima IP-Adapter Apply (strength set by MangaMode)"
+  }
+ }
+}

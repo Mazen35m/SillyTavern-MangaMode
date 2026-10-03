@@ -1,0 +1,149 @@
+{
+  "_meta": {
+    "id": "001",
+    "date": "2026-09-23",
+    "model": "illustriousXL_v01.safetensors",
+    "reason": "Per-person prompt chunks joined with ConditioningConcat (BREAK equivalent). Fixed-seed tests e1/e2 in user/files/manga-lab: two-person attribute swaps dropped from ~3/4 to ~0-1/4 panels; a missing second person went from 4/4 to 0/4 on the running scene. Regional area/mask conditioning (built-in nodes) was tested in the same run and rejected: broken composition, extra people.",
+    "settings": {
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "steps": 28,
+      "cfg": 6,
+      "width": 896,
+      "height": 1152
+    },
+    "format": "ComfyUI API format; one CLIPTextEncode+ConditioningConcat pair per extra chunk. With one chunk the graph equals 000."
+  },
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{SEED}}",
+        "steps": 28,
+        "cfg": 6,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "23",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "illustriousXL_v01.safetensors"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 896,
+        "height": 1152,
+        "batch_size": 1
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{SHARED: people count, interaction, setting + style suffix}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{NEGATIVE}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "manga",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    },
+    "20": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 1: count tag + canonical traits + outfit + scene tags}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "21": {
+      "class_type": "ConditioningConcat",
+      "inputs": {
+        "conditioning_to": [
+          "6",
+          0
+        ],
+        "conditioning_from": [
+          "20",
+          0
+        ]
+      }
+    },
+    "22": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{PERSON 2 ...}}",
+        "clip": [
+          "4",
+          1
+        ]
+      }
+    },
+    "23": {
+      "class_type": "ConditioningConcat",
+      "inputs": {
+        "conditioning_to": [
+          "21",
+          0
+        ],
+        "conditioning_from": [
+          "22",
+          0
+        ]
+      }
+    }
+  }
+}

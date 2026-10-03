@@ -1,0 +1,109 @@
+{
+  "_meta": {
+    "id": "002",
+    "date": "2026-09-23",
+    "model": "template - split-file models (Anima family first)",
+    "reason": "Second workflow family for models shipped as separate diffusion model / text encoder / VAE files. Mirrors ComfyUI's bundled blueprint \"Text to Image (Anima Base 1.0)\": UNETLoader + CLIPLoader(type stable_diffusion, auto-detects Qwen3) + VAELoader, KSampler er_sde/simple, 30 steps, CFG 4, 1024x1024. Not yet run - no split-file model is installed.",
+    "status": "template, untested"
+  },
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{SEED}}",
+        "steps": 30,
+        "cfg": 4,
+        "sampler_name": "er_sde",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "4": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{DIFFUSION_MODEL}}",
+        "weight_dtype": "default"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{NATURAL-LANGUAGE PROMPT (Prompt Style: natural)}}",
+        "clip": [
+          "10",
+          0
+        ]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{NEGATIVE + model negative + safety}}",
+        "clip": [
+          "10",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "11",
+          0
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "manga",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    },
+    "10": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "{{TEXT_ENCODER}}",
+        "type": "stable_diffusion"
+      }
+    },
+    "11": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{VAE}}"
+      }
+    }
+  }
+}

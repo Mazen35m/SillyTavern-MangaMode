@@ -1,0 +1,428 @@
+.manga_panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+/* The panel "strip": the artwork plus a white gutter band above and below it. Bubbles are placed
+   across this whole box, not just the image - a gutter is legitimate bubble space (a balloon may
+   sit entirely in one, or straddle the panel edge), which is how manhwa keeps balloons off the
+   subject instead of packing them into the frame. `.manga_bubbles_overlay` is `inset: 0` here, and
+   an absolutely-positioned element inside it resolves against the PADDING box, so this padding is exactly what
+   extends the placement area into the gutters. */
+.manga_image_wrap {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+    padding: 64px 0;
+    background: #fff;
+    border-radius: 4px;
+}
+
+.manga_image {
+    display: block;
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: 0;
+}
+
+/* Phase 4: the vertical webtoon strip. Panels stack in one column (vertical scroll is time); each
+   panel keeps its own gutter bands, so two consecutive panels are separated by a white gutter that
+   balloons may also use. All panels share one column width, like a webtoon page. */
+.manga_strip {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(100%, 560px);
+    background: #fff;
+    border-radius: 4px;
+}
+
+.manga_strip .manga_image_wrap {
+    display: block;
+    border-radius: 0;
+    padding: 40px 0;
+}
+
+.manga_strip .manga_image {
+    width: 100%;
+    max-height: none;
+    height: auto;
+}
+
+/* A rationed peak moment: the art gets the full column and large empty gutters either side, so
+   it lands by contrast with the tighter panels around it. */
+.manga_strip .manga_image_wrap.manga_full_bleed {
+    padding: 22vh 0;
+}
+
+.manga_strip .manga_image_wrap.manga_full_bleed .manga_image {
+    min-height: 70vh;
+    object-fit: cover;
+}
+
+.manga_status {
+    opacity: 0.8;
+    font-style: italic;
+    padding: 6px 0;
+}
+
+.manga_error {
+    color: var(--warning, #c94f4f);
+    font-style: normal;
+}
+
+.manga_panel_buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.manga_reveal_btn,
+.manga_redraw_btn,
+.manga_retry_btn {
+    width: fit-content;
+    padding: 2px 10px;
+}
+
+.mes_text.manga-text-hidden {
+    display: none;
+}
+
+.manga_debug {
+    width: 100%;
+    max-width: 640px;
+    font-size: 0.85em;
+    background: rgba(128, 128, 128, 0.08);
+    border: 1px solid rgba(128, 128, 128, 0.25);
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+.manga_debug summary {
+    cursor: pointer;
+    opacity: 0.85;
+}
+
+.manga_debug_label {
+    margin-top: 6px;
+    font-weight: bold;
+    opacity: 0.8;
+}
+
+.manga_debug_pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 2px 0 0 0;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+.manga_prompt_preset {
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border-left: 2px solid rgba(128, 128, 128, 0.3);
+}
+
+/* Speech bubble overlay - pure HTML/CSS, drawn on top of the <img>, never baked into it.
+   `.manga_bubbles_overlay` has zero padding/inset of its own, so its box is exactly the strip
+   (artwork + gutters) that bubbles.js measures and places against - any offset here would throw
+   that math off. */
+
+.manga_bubbles_overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    line-height: normal;
+}
+
+.manga_bubbles_narration {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 7% 5% 0 5%;
+}
+
+/* One group per speaker, placed by the candidate-region engine in bubble-placement.js. Starts at
+   this top-right default (matching the pre-placement-engine behavior) so bubbles are never
+   unpositioned; bubbles.js overwrites `top`/`left`/`right` inline once real placement is computed,
+   or leaves this default in place if image analysis isn't possible. Sized explicitly (inline, by
+   bubbles.js) to match the SVG balloon's own dimensions exactly, since that's what the placement
+   engine measures. */
+.manga_bubble_group {
+    position: absolute;
+    top: 3%;
+    right: 3%;
+    pointer-events: none;
+}
+
+/* Degraded-mode fallback only (see `buildFallbackGroupElement` in bubbles.js) - plain stacked
+   ovals, used only if the SVG balloon geometry fails to build. */
+.manga_bubble_group_fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    max-width: 42%;
+}
+
+/* The speech group's balloon: one merged outline (white fill, black stroke) plus a shared tail,
+   both drawn by bubbles.js/bubble-geometry.js as plain filled paths/polygons - no blur, no filter,
+   crisp edges at any zoom level. `overflow: visible` so the tail (which can extend past the lobes'
+   own bounding box) never gets clipped at the SVG's edge. */
+.manga_bubble_svg {
+    display: block;
+    overflow: visible;
+}
+
+.manga_bubble_text_layer {
+    position: absolute;
+    inset: 0;
+}
+
+.manga_bubble_lobe_text {
+    position: absolute;
+    display: block;
+    pointer-events: auto;
+    color: #000;
+    font-weight: 700;
+    font-size: 0.78em;
+    line-height: 1.2;
+    text-align: center;
+    unicode-bidi: plaintext;
+    word-break: break-word;
+    max-width: 26ch;
+}
+
+/* Used only transiently (appended, measured via offsetWidth/Height, then removed) to get each
+   dialogue line's natural wrapped text box before the balloon geometry is computed - shares
+   `.manga_bubble_lobe_text` so measurement and final render use identical font/wrap rules. */
+.manga_bubble_measure_host {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    pointer-events: none;
+    width: max-content;
+    max-width: 320px;
+}
+
+/* `.manga_bubble_lobe_text` is `position: absolute` for final rendering (it's placed over the SVG
+   by explicit left/top/width), but during measurement that left it with no real available width to
+   wrap against - an absolutely-positioned span (width: auto) inside an absolutely-positioned host
+   (width: auto) has no determinate containing width, so it collapsed to its minimum content width
+   (one character, since word-break allows breaking anywhere) instead of wrapping naturally. Forcing
+   normal flow just for the measurement pass gives it a real preferred-width calculation again. */
+.manga_bubble_measure_host .manga_bubble_lobe_text {
+    position: static;
+    display: inline-block;
+    width: max-content;
+    max-width: 26ch;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.manga_bubble {
+    pointer-events: auto;
+    position: relative;
+    background: rgba(255, 255, 255, 0.97);
+    color: #111;
+    border: 2px solid #111;
+    border-radius: 50%;
+    padding: 16px 20px;
+    font-size: 0.82em;
+    line-height: 1.35;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    word-break: break-word;
+    min-width: 48px;
+    max-width: 30ch;
+}
+
+.manga_bubble_text {
+    display: block;
+    unicode-bidi: plaintext;
+}
+
+.manga_bubble_narration {
+    border-radius: 8px;
+    background: rgba(15, 15, 15, 0.85);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    text-align: center;
+    padding: 8px 14px;
+}
+
+.manga_bubble_no_tail {
+    border-style: dotted;
+    opacity: 0.92;
+}
+
+/* Narration captions are placed by the engine like balloons; cap their width so a long caption
+   wraps into a readable box instead of spanning the strip. */
+.manga_caption_group {
+    max-width: 62%;
+    width: max-content;
+}
+
+.manga_caption_group .manga_bubble_narration {
+    max-width: none;
+    border-radius: 2px;
+    background: #fdfbf3;
+    color: #111;
+    border: 2px solid #111;
+    font-style: normal;
+    box-shadow: none;
+}
+
+/* A panel made of 2-3 frames (manga layout). The grid box keeps the layout's shape; each frame is
+   positioned in fractions of it. `.manga_frame_host` is the frame plus, on the panel's top/bottom
+   edge, the gutter above/below it - the area that frame's balloons may use. */
+.manga_strip .manga_grid_wrap {
+    display: block;
+}
+
+.manga_grid {
+    position: relative;
+    width: 100%;
+}
+
+.manga_frame_host {
+    position: absolute;
+    line-height: 0;
+}
+
+.manga_frame {
+    position: absolute;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    background: #fff;
+    border: 2px solid #111;
+    box-sizing: border-box;
+}
+
+.manga_strip .manga_frame .manga_image,
+.manga_frame .manga_image {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+}
+
+/* Balloons inside a frame of a multi-frame panel: a frame is half the column or less, so the
+   lettering is set smaller and wraps narrower (measurement happens inside the same host, so it
+   uses these rules too). */
+.manga_frame_host .manga_bubble_lobe_text {
+    font-size: 0.62em;
+    max-width: 21ch;
+}
+
+.manga_strip .manga_grid_wrap {
+    padding: 72px 0;
+}
+
+/* An inferred inner thought: dotted balloon (bubbles.js), italic lettering. */
+.manga_inner_text {
+    font-style: italic;
+    font-weight: 600;
+}
+
+/* Sound effects / reaction marks lettered over the art. */
+.manga_sfx {
+    position: absolute;
+    z-index: 3;
+    pointer-events: none;
+    line-height: 1;
+    font-family: Impact, 'Arial Black', 'Segoe UI Black', sans-serif;
+    font-weight: 900;
+    font-style: italic;
+    font-size: 1.9em;
+    letter-spacing: 0.02em;
+    color: #fff;
+    -webkit-text-stroke: 2px #000;
+    paint-order: stroke fill;
+    text-shadow: 3px 3px 0 #000;
+    transform: rotate(-9deg);
+    white-space: nowrap;
+}
+
+.manga_sfx_left { left: 5%; }
+.manga_sfx_right { right: 5%; transform: rotate(8deg); }
+.manga_image_wrap > .manga_sfx { top: 52px; }
+.manga_image_wrap.manga_full_bleed > .manga_sfx { top: calc(22vh + 12px); }
+.manga_frame > .manga_sfx { top: 5%; font-size: 1.35em; -webkit-text-stroke-width: 1.5px; text-shadow: 2px 2px 0 #000; }
+
+/* The cost line under a page (Show cost of each reply). */
+.manga_cost {
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin: 2px 0 6px;
+    text-align: right;
+}
+
+
+/* ---------------------------------------------------------------------------------------------
+   Webtoon mode (settings: "Webtoon mode"): one continuous vertical scroll. No white page, no gutters above and
+   below each picture, no grid margins; pictures are full width, one under the other, with a thin dark gap
+   (change --manga-webtoon-gap to 0 for a seamless scroll). Balloons stay on the pictures (bubbles.js does not grow
+   gutters in this mode).
+   --------------------------------------------------------------------------------------------- */
+.manga_strip.manga_webtoon {
+    --manga-webtoon-gap: 4px;
+    width: min(100%, 680px);
+    gap: var(--manga-webtoon-gap);
+    background: transparent;
+    border-radius: 0;
+}
+
+.manga_strip.manga_webtoon .manga_image_wrap,
+.manga_strip.manga_webtoon .manga_image_wrap.manga_full_bleed,
+.manga_strip.manga_webtoon .manga_grid_wrap {
+    padding: 0;
+    background: #0b0b0b;
+    border-radius: 0;
+}
+
+.manga_strip.manga_webtoon .manga_image_wrap .manga_image,
+.manga_strip.manga_webtoon .manga_image_wrap.manga_full_bleed .manga_image {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    object-fit: initial;
+}
+
+.manga_strip.manga_webtoon .manga_image_wrap > .manga_sfx,
+.manga_strip.manga_webtoon .manga_image_wrap.manga_full_bleed > .manga_sfx {
+    top: 3%;
+}
+
+/* Settings panel: collapsible groups and dimmed dependent controls. */
+.manga_mode_settings h4 {
+    margin: 14px 0 4px 0;
+}
+
+.manga_mode_settings .manga_dim {
+    opacity: 0.45;
+}
+
+.manga_mode_settings .manga_group {
+    margin: 12px 0 4px 0;
+    padding: 4px 8px 8px 8px;
+    border: 1px solid rgba(128, 128, 128, 0.35);
+    border-radius: 6px;
+}
+
+.manga_mode_settings .manga_group > summary {
+    cursor: pointer;
+    font-weight: bold;
+    padding: 4px 0;
+}

@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "id": "003",
+    "date": "2026-09-23",
+    "model": "anima-turbo-v1.1 + qwen_3_06b_base + qwen_image_vae",
+    "reason": "Concrete settings of the split-file family (002) for Anima Turbo v1.1, chosen by benchmarks b1-b4 (docs/experiments.md): natural Prompt Style, er_sde/simple, 10 steps, CFG 1. 5.8 s per panel on the RTX 3070, 5.4 GB staged. At CFG 1 the negative prompt has no effect - avoidance lives in the positive prompt (safe tag, adult/clothed sentences, no speech clauses).",
+    "settings": {
+      "sampler": "er_sde",
+      "scheduler": "simple",
+      "steps": 10,
+      "cfg": 1,
+      "promptStyle": "natural"
+    },
+    "status": "adopted"
+  },
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{SEED}}",
+        "steps": 10,
+        "cfg": 1,
+        "sampler_name": "er_sde",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "4": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "anima-turbo-v1.1.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": "{{per framing, default 896}}",
+        "height": "{{per framing, default 1152}}",
+        "batch_size": 1
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{NATURAL-LANGUAGE PANEL PROMPT - Prompt Style natural, prefix: masterpiece, best quality, score_7, safe. A colored webtoon manhwa illustration.}}",
+        "clip": [
+          "10",
+          0
+        ]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{user negative + score_1, score_2, score_3 + MangaMode safety/layout negatives (inactive at CFG 1)}}",
+        "clip": [
+          "10",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "11",
+          0
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "manga",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    },
+    "10": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen_3_06b_base.safetensors",
+        "type": "stable_diffusion"
+      }
+    },
+    "11": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "qwen_image_vae.safetensors"
+      }
+    }
+  }
+}
