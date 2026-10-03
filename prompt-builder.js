@@ -10,6 +10,8 @@ import { matchPlace, objectsIn } from './set-book.js';
 import { PROMPT_STYLES } from './settings.js';
 import { findPerson } from './cast-book.js';
 import { cameraPhrase, cameraTags } from './director.js';
+import { dialectOf, LEGACY_ANIMA_PATCHES } from './model-adapters.js';
+import { readMoment, momentCamera, newWords, handPhrase, placeOnce, withoutPlaceholderPossessives , withoutDoubledLabels } from './moment-cards.js';
 import { FAR_WORDS, sentencesOf, layeredOutfit, NO_OUTFIT, postureOf, withoutAbsences, withoutDividers, withoutGlass, withoutStrayPronouns } from './text-rules.js';
 
 // ---------------------------------------------------------------- small text helpers
@@ -25,12 +27,12 @@ function escapeRegex(text) {
 const norm = (name) => String(name || '').trim().toLowerCase();
 
 /** Text without its closing full stop (looks and outfits are joined into longer sentences). */
-function bare(text) {
+export function bare(text) {
     return String(text || '').trim().replace(/[.;,\s]+$/, '');
 }
 
 /** A sentence with a full stop, or ''. */
-function sentence(text) {
+export function sentence(text) {
     // A clause cut by name swapping or speech removal can end on a comma ("Sits at the table,"):
     // the full stop used to be eaten by tidy() and two sentences ran together.
     const t = String(text || '').trim().replace(/\s+/g, ' ').replace(/[,;:\s]+$/, '');
@@ -175,7 +177,7 @@ export function withoutRearTraits(text) {
 }
 
 /** Booru-isms a sentence-reading model takes literally ("white skin" painted people chalk-white). */
-function plainLook(text) {
+export function plainLook(text) {
     return withoutAbsences(withoutRearTraits(text)).replace(/\bwhite skin\b/gi, 'fair skin').replace(/\bpale skin\b/gi, 'fair, pale skin');
 }
 
@@ -187,13 +189,16 @@ const SHOES_OFF = new Set(['extreme close-up', 'close-up', 'medium shot']);
  * camera back to show them. A printed shirt becomes a small image-only print (printed words came
  * out as gibberish lettering across the chest).
  */
-export function framedOutfit(outfit, shot) {
+export function framedOutfit(outfit, shot, D = LEGACY_ANIMA_PATCHES) {
     if (!outfit || NO_OUTFIT.test(String(outfit))) return '';
-    let out = layeredOutfit(withoutAbsences(String(outfit)))
-        .replace(/\b(?:band|slogan|logo)\s+(t-?shirt|tee|hoodie|sweatshirt)\b/gi, '$1 with a small picture print')
-        .replace(/\b(?:band|slogan|logo|text)\s+(graphic|print|logo)\b/gi, 'picture print');
-    // "a scrunchie on wrist" came out as one on each wrist.
-    out = out.replace(/\b(on|around|round)\s+(?:her\s+|his\s+|their\s+)?wrist\b(?!s)/gi, '$1 one wrist');
+    let out = layeredOutfit(withoutAbsences(String(outfit)));
+    if (D.outfitFixes) {
+        out = out
+            .replace(/\b(?:band|slogan|logo)\s+(t-?shirt|tee|hoodie|sweatshirt)\b/gi, '$1 with a small picture print')
+            .replace(/\b(?:band|slogan|logo|text)\s+(graphic|print|logo)\b/gi, 'picture print');
+        // "a scrunchie on wrist" came out as one on each wrist.
+        out = out.replace(/\b(on|around|round)\s+(?:her\s+|his\s+|their\s+)?wrist\b(?!s)/gi, '$1 one wrist');
+    }
     if (SHOES_OFF.has(String(shot || ''))) out = out.split(',').map((t) => t.trim()).filter((t) => t && !FOOTWEAR.test(t)).join(', ');
     return out;
 }
@@ -215,7 +220,7 @@ export function isYoung(person) {
     return YOUNG.test(text);
 }
 
-function nounOf(person) {
+export function nounOf(person) {
     const young = isYoung(person);
     if (person?.sex === 'female') return young ? 'a girl' : 'an adult woman';
     if (person?.sex === 'male') return young ? 'a boy' : 'an adult man';
@@ -260,6 +265,8 @@ const LEG_ACTION = new RegExp(LEG_PARTS.join('|'), 'i');
 
 /** The camera actually used: a leg action in a waist-up shot becomes a full shot. Pure. */
 export function effectiveCamera(spec, camera) {
+    // A frame with a moment card is framed by what shows its facts (moment-cards.js); a frame without one is not touched.
+    camera = momentCamera(spec, camera);
     const cam = { shot: camera?.shot || 'medium shot', angle: camera?.angle || 'eye level', forCrop: camera?.forCrop };
     if (cam.forCrop || cam.shot !== 'medium shot' || spec?.kind === 'insert') return cam;
     const text = [spec?.description, ...(spec?.people || []).map((p) => p?.action)].join(' ');
@@ -276,6 +283,7 @@ const HAND_ACTION = /\b(?:hands?\s+(?:over|out|it|them|him|her)\b|handing\b|hold
  * face close-up (the crop would cut the hands away), a medium shot of both instead. Pure.
  */
 export function contactCamera(spec, camera) {
+    camera = momentCamera(spec, camera);
     const shot = camera?.shot || 'medium shot';
     if (spec?.kind === 'insert' || spec?.kind === 'establishing' || shot !== 'close-up') return camera;
     const text = [spec?.interaction, ...(spec?.people || []).map((p) => p?.action)].join(' ');
@@ -307,7 +315,7 @@ export function withFramingTags(prefix, tags) {
  * Somebody who is not in the picture at all is "someone outside the picture" - naming him made the
  * image model draw him.
  */
-export function gazeSentence(person, figures, { personaName = '', pov = false, overShoulder = false, swap = (t) => t, farAway = null, cast = null } = {}) {
+export function gazeSentence(person, figures, { personaName = '', pov = false, overShoulder = false, swap = (t) => t, farAway = null, cast = null, patches = LEGACY_ANIMA_PATCHES } = {}) {
     const gaze = String(person?.gaze || '').trim();
     if (!gaze) return '';
     const { He, looks, his } = pronouns(person.cast);
@@ -328,13 +336,14 @@ export function gazeSentence(person, figures, { personaName = '', pov = false, o
         // A person who holds something (a cup, a menu) was drawn looking down at it: the eyes go to
         // the other person's face.
         const holding = HOLDING.test(String(person.action || ''));
+        if (!patches.gazeHoldingClause) return `${He} ${looks} at ${target.label}.`;
         return `${He} ${looks} at ${target.label}, ${his} eyes on that person's face${holding ? ', even while the hands are busy' : ''}.`;
     }
     const atPlayer = personaName && sameAs(gaze, personaName);
     // Someone further away in the picture (the player talking to someone down the street): the
     // watcher looks into the picture, not at the reader - onlookers were drawn posing at the viewer.
     const far = (farAway || []).find((p) => refersTo(gaze, { name: p.name, cast: p }, cast));
-    if (far && !pov) return `${He} ${looks} away from the viewer, into the picture, toward ${far.label} further away.`;
+    if (far && !pov) return patches.onlookerFixes ? `${He} ${looks} away from the viewer, into the picture, toward ${far.label} further away.` : `${He} ${looks} toward ${far.label}, who is further away.`;
     if (VIEWER_WORD.test(gaze) || atPlayer) return `${He} ${looks} straight at the viewer.`;
     // A cast member who is not in the picture (and not in its background): off to the side.
     const absent = (cast || []).find((c) => !figures.some((f) => f.cast === c) && refersTo(gaze, { name: c.name, cast: c }, cast));
@@ -585,24 +594,31 @@ function talkingPair(a, b, spec, ctx) {
 export function compileFrame(spec, camera, ctx) {
     const style = ctx.style || PROMPT_STYLES.NATURAL;
     const preset = ctx.presets?.[style] || {};
+    // What this image model needed patched (model-adapters.js): the Anima patches when no adapter is given.
+    const D = dialectOf(ctx);
+    // Moment pipeline: the frame's card (what it must show) and the text hygiene of 1.1. Neither exists in the classic pipeline.
+    const M = ctx.pipeline === 'moment';
+    const card = M ? readMoment(spec) : null;
     const { kind, cam, pov, figures, farAway, swap, clean, persona, player, ownHands } = frameContext(spec, camera, ctx);
     const others = figures.filter((f) => f !== persona);
     const overShoulder = cam.angle === 'over the shoulder' && persona && others.length;
     // Two people who talk share one open space: nothing the setting lists as a divider is named then.
-    const pairTalks = kind !== 'insert' && figures.length === 2 && !overShoulder && talkingPair(figures[0], figures[1], spec, ctx) && !barrierBetween(spec);
-    const faceToFace = pairTalks || (overShoulder && others.length === 1);
+    const pairTalks = D.openSpace && kind !== 'insert' && figures.length === 2 && !overShoulder && talkingPair(figures[0], figures[1], spec, ctx) && !barrierBetween(spec);
+    const faceToFace = D.openSpace && (pairTalks || (overShoulder && others.length === 1));
     // What must not stand between two people facing each other: dividers, and glass (a window named in
     // the scenery was drawn as a pane between them). A redraw after a "wall between them" failure
     // (spec.clearSpace) leaves them out of any frame.
-    const open = (t) => (faceToFace || spec?.clearSpace ? withoutGlass(withoutDividers(t)) : t);
+    const open = (t) => (D.openSpace && (faceToFace || spec?.clearSpace) ? withoutGlass(withoutDividers(t)) : t);
     const where = String(spec?.location || ctx.setting || '').trim().replace(/\.$/, '');
-    const place = matchPlace(where, ctx.setBook || []);
+    const place = matchPlace(where, ctx.setBook || [], { strict: M });
     const heldText = figures.map((f) => f.action || '').join(' ');
     const placeLook = withoutHeldProps(bare(place?.look), heldText);
     const placeText = place ? [place.label && !/^the (place|object)$/i.test(place.label) ? place.label : '', open(placeLook)].filter(Boolean).join(': ') : open(clean(where));
     // A spot inside a larger setting (a booth in a tavern) keeps the setting around it: alone it
     // was drawn floating on a white background.
-    const around = ctx.setting && place && !where.toLowerCase().includes(String(ctx.setting).toLowerCase()) ? open(swap(bare(ctx.setting))) : '';
+    const aroundRaw = ctx.setting && (place || M) && !where.toLowerCase().includes(String(ctx.setting).toLowerCase()) ? open(swap(bare(ctx.setting))) : '';
+    // The setting repeats the place in other words: only what it adds (the hour, the weather) stays.
+    const around = M ? placeOnce(placeText, aroundRaw, clean(spec?.light || '')) : aroundRaw;
     const atmosphere = ctx.atmosphere || '';
     const frameText = [spec?.description, ...(spec?.people || []).map((p) => p?.action)].join(' ');
     const objects = objectsIn(frameText, ctx.setBook || []).map((o) => `${capitalize(o.label && !/^the (place|object)$/i.test(o.label) ? o.label : 'A recurring object')}: ${bare(o.look)}.`);
@@ -615,7 +631,7 @@ export function compileFrame(spec, camera, ctx) {
     const ownBody = (t) => (pov && !persona ? String(t).split(/(?<=[.!?])\s+/).filter((x) => !/^the viewer(?:'s)?\b/i.test(x.trim()) || (ownHands && HANDS_WORK.test(x))).join(' ') : t);
     const description = ownBody(clean(spec?.description || ''));
 
-    if (style !== PROMPT_STYLES.NATURAL) return compileTags({ spec, cam, kind, figures, preset, placeText, background, description: [description, clean(spec?.interaction || '')].filter(Boolean).join(', '), persona, view: kind === 'insert' ? '' : clean(spec?.view || ''), light: clean(spec?.light || '').replace(/\.$/, '') });
+    if (style !== PROMPT_STYLES.NATURAL) return compileTags({ spec, cam, kind, figures, preset, placeText, background, description: [description, clean(spec?.interaction || '')].filter(Boolean).join(', '), persona, view: kind === 'insert' ? '' : clean(spec?.view || ''), light: clean(spec?.light || '').replace(/\.$/, ''), D });
 
     const s = [];
     if (kind === 'insert') {
@@ -625,9 +641,21 @@ export function compileFrame(spec, camera, ctx) {
         // reaching in from the bottom edge. Framed against their own clothes, they stay theirs.
         const holder = figures.length === 1 && !(ctx.personaName && norm(figures[0].name) === norm(ctx.personaName)) ? figures[0] : null;
         const his = holder ? pronouns(holder.cast).his : 'their';
-        const top = holder ? framedOutfit(bare(holder.cast.outfit), 'close-up').split(',').map((t) => t.trim()).find((t) => /\b(shirt|t-shirt|top|blouse|jacket|coat|hoodie|sweater|dress|tunic|vest|robe|armou?r|breastplate|uniform|apron|cardigan|kimono)\b/i.test(t)) : '';
+        const top = holder ? framedOutfit(bare(holder.cast.outfit), 'close-up', D).split(',').map((t) => t.trim()).find((t) => /\b(shirt|t-shirt|top|blouse|jacket|coat|hoodie|sweater|dress|tunic|vest|robe|armou?r|breastplate|uniform|apron|cardigan|kimono)\b/i.test(t)) : '';
         const contactInsert = Boolean(holder && String(spec?.interaction || '').trim());
         const surface = holder ? ((`${spec?.description || ''} ${spec?.location || ''} ${placeText || ''} ${(spec?.people || []).map((x) => x?.action).join(' ')}`.match(/\b(table|counter|desk|bar|bench)\b/i) || [])[1] || '').toLowerCase().replace(/^bar$/, 'bar counter') : '';
+        if (!D.insertGuards) {
+            // No model-specific guard sentences: what the picture is, in plain words.
+            s.push(ownHands && !figures.length
+                ? 'A first-person close-up of the viewer\'s own hands, seen as the viewer sees them.'
+                : !figures.length
+                    ? 'A close-up of an object on its own.'
+                    : contactInsert
+                        ? `A close-up of ${holder.label}'s hands at the point of contact with another object.`
+                        : holder
+                            ? `A close-up of ${holder.label}'s hands and an object.`
+                            : `A close-up of the hands of ${figures.map((f) => f.label).join(' and ')}.`);
+        } else
         s.push(ownHands && !figures.length
             ? 'A first-person close-up: the viewer\'s own hands, coming in from the bottom edge of the picture, seen as the viewer sees them.'
             : !figures.length
@@ -647,12 +675,14 @@ export function compileFrame(spec, camera, ctx) {
         if (ownHands && figures.length) s.push('The viewer\'s own hand reaches in from the bottom edge of the picture to meet them, seen first-person.');
         if (ownHands && !figures.length) {
             const skin = ((bare(player.look).match(/[^,]*\bskin\b[^,]*/i) || [''])[0]).replace(/\s+(?:with|and)\b.*$/i, '').trim();
-            const items = framedOutfit(bare(player.outfit), 'full shot').split(',').map((t) => t.trim());
+            const items = framedOutfit(bare(player.outfit), 'full shot', D).split(',').map((t) => t.trim());
             // What shows at the wrists: gloves or a watch, long sleeves, else bare forearms (a T-shirt).
             const onHands = items.find((t) => /\b(gloves?|gauntlets?|bracers?|watch|bracelets?|rings?)\b/i.test(t));
             const longSleeve = items.find((t) => /\b(jacket|coat|hoodie|sweater|cardigan|long-sleeved|sweatshirt|robe|armou?r)\b/i.test(t));
             const wrists = onHands ? `, ${onHands}` : longSleeve ? `, the sleeves of the ${longSleeve.replace(/^(?:an?|the)\s+/i, '').replace(/^\p{Lu}(?=\p{Ll})/u, (c) => c.toLowerCase())} at the wrists` : ', bare forearms';
             s.push(`The viewer's hands (${[nounOf(player).replace(/^an? /, ''), skin].filter(Boolean).join('; ')})${wrists}.`);
+            const own = card ? card.holding.filter((h) => sameHolder(h.person, player, ctx)) : [];
+            if (own.length) s.push(`The viewer's hands hold ${own.map((h) => `${h.object}${handPhrase(h.hand, 'the').replace(/^in the /, ' in the ')}`).join(' and ')}.`.replace(/\s{2,}/g, ' '));
         }
     } else if (pov) {
         s.push('A first-person view: the camera is the viewer\'s own eyes, looking out at the scene.');
@@ -678,6 +708,7 @@ export function compileFrame(spec, camera, ctx) {
         // ("Still seated, leaning forward with hands in her pockets") it lost to the action and the
         // girl was drawn standing (A/B 2026-10-01: standing 4 of 4; with this sentence, sitting 4 of 4).
         for (const f of figures) {
+            if (!D.postureSentence) break;
             if (overShoulder && f === persona) continue;
             const posture = postureOf(`${f.action || ''}`);
             if (!posture) continue;
@@ -700,7 +731,7 @@ export function compileFrame(spec, camera, ctx) {
         }
         // Onlookers were drawn lined up facing the viewer like a group photo: people who watch
         // someone in the frame are turned toward them.
-        if (count > 1 && !overShoulder) {
+        if (D.onlookerFixes && count > 1 && !overShoulder) {
             for (const target of figures) {
                 const watchers = figures.filter((f) => f !== target && String(f.gaze || '').trim() && (sameAs(f.gaze, target.name) || (target.cast?.aliases || []).some((a) => sameAs(f.gaze, a))));
                 if (watchers.length >= 2 || (watchers.length === 1 && count >= 3)) {
@@ -711,7 +742,7 @@ export function compileFrame(spec, camera, ctx) {
         // Two people who look at each other were drawn shoulder to shoulder like a photo pair; two who
         // walk together are side by side (never "facing each other" - they would walk into each other).
         let faceEach = false;
-        if (count === 2 && !overShoulder && !String(spec?.interaction || '').trim()) {
+        if (D.openSpace && count === 2 && !overShoulder && !String(spec?.interaction || '').trim()) {
             const [a, b] = figures;
             const looksAt = (x, y) => sameAs(x.gaze || '', y.name) || (y.cast?.aliases || []).some((al) => sameAs(x.gaze || '', al))
                 || (VIEWER_WORD.test(x.gaze || '') && ctx.personaName && norm(y.name) === norm(ctx.personaName));
@@ -734,9 +765,17 @@ export function compileFrame(spec, camera, ctx) {
         if (pairTalks && !faceEach) s.push(`${capitalize(figures[0].label)} and ${figures[1].label} are in one open space, in plain view of each other.`);
     }
     const contact = clean(spec?.interaction || '');
-    if (contact) s.push(`The key moment, clearly visible: ${sentence(contact)}`);
+    // A card's facts ARE the key moment. The interaction and the description are kept only for what they add to the facts.
+    const factSentences = card ? card.facts.map((f) => sentence(clean(f))).filter(Boolean) : [];
+    let factsAndContact = '';
+    if (factSentences.length) {
+        s.push(`The key moment, clearly visible: ${factSentences.join(' ')}`);
+        const contactKept = keepNew(contact, factSentences.join(' '));
+        if (contactKept) s.push(sentence(contactKept));
+        factsAndContact = `${factSentences.join(' ')} ${contactKept}`;
+    } else if (contact) s.push(`The key moment, clearly visible: ${sentence(contact)}`);
     if (kind !== 'insert') s.push(background ? `${figures.length ? 'Around them' : 'In the scene'}: ${background.replace(/\.$/, '')}.` : '');
-    if (description) s.push(sentence(description));
+    if (description) { const d = factSentences.length ? keepNew(description, factsAndContact) : description; if (d) s.push(sentence(d)); }
     s.push(placeText ? `Setting: ${[placeText, around ? (/^(in|inside|within|at|on|outside|under|beneath|atop|near|by)\b/i.test(around) ? around.charAt(0).toLowerCase() + around.slice(1) : `inside ${around.replace(/^(A|An|The)\b/, (a) => a.toLowerCase())}`) : '', atmosphere].filter(Boolean).join(', ')}.` : '');
     // 1.13: the part of the place this frame looks at (the whole-place text above is the same in every frame, and every frame
     // was the same corridor: Gemini review of a 5-frame scroll, 2026-10-02).
@@ -746,30 +785,30 @@ export function compileFrame(spec, camera, ctx) {
     // betraying the blackout") because "vibrant full color" closed every prompt; a dark frame drops it and says what is dark.
     const light = clean(spec?.light || '').replace(/\.$/, '');
     const dark = isDarkLight(light);
-    if (light) s.push(dark ? `Lighting: ${light}. The picture is low-key and dim, with deep shadows and only a few pools of light, not evenly lit.` : `Lighting: ${light}.`);
+    if (light) s.push(dark && D.darkReinforce ? `Lighting: ${light}. The picture is low-key and dim, with deep shadows and only a few pools of light, not evenly lit.` : `Lighting: ${light}.`);
     // 1.15: one person off-centre. A same-seed test: "placed in the left third, open space on the right" moves the figure and the camera.
-    if (kind === 'character' && figures.length === 1 && !cam.forCrop && !/close-up/.test(cam.shot || '') && (figures[0].side === 'left' || figures[0].side === 'right')) {
+    if (D.compositionThird && kind === 'character' && figures.length === 1 && !cam.forCrop && !/close-up/.test(cam.shot || '') && (figures[0].side === 'left' || figures[0].side === 'right')) {
         const side = figures[0].side;
         s.push(`Composition: ${figures[0].label} is placed in the ${side} third of the frame, with open space on the ${side === 'left' ? 'right' : 'left'}.`);
     }
-    if (kind !== 'insert') s.push('The background is the setting itself, fully drawn and painted edge to edge.');
+    if (D.edgeBackground && kind !== 'insert') s.push('The background is the setting itself, fully drawn and painted edge to edge.');
     // A "manhwa" prompt sometimes came back as two stacked panels of the same moment.
-    s.push('It is one single continuous picture.');
+    if (D.singlePicture) s.push('It is one single continuous picture.');
     s.push(...objects);
     if (ctx.world?.era_and_technology) s.push(eraPhrase(ctx.world.era_and_technology));
 
     // Someone who watches a person far away in the background is seen from behind, looking into the
     // picture - never the only main figure (that turned the frame's subject away from the reader).
-    const watchingFar = figures.length > 1 ? figures.filter((f) => farAway.some((c) => sameAs(f.gaze || '', c.name))) : [];
+    const watchingFar = figures.length > 1 && D.onlookerFixes ? figures.filter((f) => farAway.some((c) => sameAs(f.gaze || '', c.name))) : [];
     if (watchingFar.length && kind !== 'insert' && !pov) s.push(`${capitalize(watchingFar.map((f) => f.label).join(' and '))} ${watchingFar.length > 1 ? 'are' : 'is'} seen from behind at a three-quarter angle, facing into the picture toward ${farAway.find((c) => watchingFar.some((f) => sameAs(f.gaze || '', c.name))).label} in the distance.`);
-    const anchored = kind !== 'insert' && !overShoulder && figures.length > 1 && new Set(figures.map((f) => f.side)).size === figures.length;
+    const anchored = D.sideAnchors && kind !== 'insert' && !overShoulder && figures.length > 1 && new Set(figures.map((f) => f.side)).size === figures.length;
     for (const f of figures) {
         const p = f.cast;
-        const outfit = framedOutfit(bare(p.outfit), cam.shot);
+        const outfit = framedOutfit(bare(p.outfit), cam.shot, D);
         if (kind === 'insert') {
             // What is on the hands and arms (gauntlets, gloves, rings, sleeves, a scrunchie), else
             // the first garment - the one thing that tells whose hands these are.
-            const parts = framedOutfit(bare(p.outfit), 'full shot').split(/,|\band\b/).map((t) => t.trim()).filter(Boolean);
+            const parts = framedOutfit(bare(p.outfit), 'full shot', D).split(/,|\band\b/).map((t) => t.trim()).filter(Boolean);
             const onHands = parts.filter((t) => /\b(gauntlets?|gloves?|bracers?|vambraces?|rings?|sleeves?|cuffs?|mitts?|bracelets?|bangles?|wraps?|scrunchies?|wristbands?|watch|wristwatch|hair ties?|nail polish|manicure)\b/i.test(t));
             const sleeve = onHands.length ? `, wearing ${onHands.join(', ')}` : (parts[0] ? `, wearing ${parts[0]}` : '');
             // Skin without face words ("light skin with prominent blush"); age and build keep the hands
@@ -789,19 +828,67 @@ export function compileFrame(spec, camera, ctx) {
         const posture = fromBehind ? postureOf(f.action || '') : null;
         const action = fromBehind ? `Seen from behind${posture ? `, ${posture === 'lying' ? 'lying down' : posture}` : ''}, the back of the head toward the viewer` : rear ? `Seen from behind, the back of the head toward the viewer. ${clean(f.action || '')}` : clean(f.action || '');
         const face = fromBehind || rear ? '' : clean(f.expression || '');
-        const eyes = fromBehind || rear ? '' : gazeSentence(f, figures, { personaName: ctx.personaName, pov, overShoulder: Boolean(overShoulder), swap, farAway, cast: ctx.cast });
+        const eyes = fromBehind || rear ? '' : gazeSentence(f, figures, { personaName: ctx.personaName, pov, overShoulder: Boolean(overShoulder), swap, farAway, cast: ctx.cast, patches: D });
         // With two or three people in the picture, each description starts from where the person stands:
         // outfits leaked across people otherwise (live test 2026-09-30: the vendor's apron was drawn on
         // the other woman in 3 of 4 images; with "On the left ... On the right ..." in 0 of 4).
         const anchor = anchored ? { left: 'On the left, ', right: 'On the right, ', center: 'In the middle, ' }[f.side] || '' : '';
-        s.push([`${anchor ? anchor + f.label : capitalize(f.label)} is ${nounOf(p)}${body ? `: ${body}` : ''}.`, sentence(action), sentence(face), eyes].filter(Boolean).join(' '));
+        const held = card && !fromBehind ? holdingSentence(card, f, ctx) : '';
+        const spot = card && !fromBehind ? spotSentence(card, f, ctx, `${f.action || ''} ${spec?.description || ''} ${where}`, swap) : '';
+        s.push([`${anchor ? anchor + f.label : capitalize(f.label)} is ${nounOf(p)}${body ? `: ${body}` : ''}.`, sentence(action), held, spot, sentence(face), eyes].filter(Boolean).join(' '));
     }
-    s.push(NO_TEXT);
+    if (D.noTextSentence) s.push(NO_TEXT);
 
-    const framing = kind === 'establishing' ? 'scenery, wide shot' : kind === 'insert' ? 'close-up, hands focus' : (NATURAL_FRAMING[cam.shot] || '');
+    const framing = !D.framingTags ? '' : kind === 'establishing' ? 'scenery, wide shot' : kind === 'insert' ? 'close-up, hands focus' : (NATURAL_FRAMING[cam.shot] || '');
     const prefix = withFramingTags(preset.prefix, framing);
-    const suffix = dark ? withoutVibrantColor(preset.suffix) : String(preset.suffix || '').trim();
-    return [[prefix, tidy(s.filter(Boolean).join(' ')), suffix].filter(Boolean).join(' ')];
+    const suffix = dark && D.darkDropsVibrant ? withoutVibrantColor(preset.suffix) : String(preset.suffix || '').trim();
+    const body = tidy(s.filter(Boolean).join(' '));
+    // "taps the watch on someone's wrist": the placeholder of a person who is not drawn is not left in the sentence.
+    return [[prefix, M ? withoutDoubledLabels(withoutPlaceholderPossessives(body, figures.length === 1 ? pronouns(figures[0].cast).his : null), ctx.setBook) : body, suffix].filter(Boolean).join(' ')];
+}
+
+/** Is the card's person this cast entry (by name, alias or label)? */
+function sameHolder(personName, entry, ctx) {
+    if (!personName || !entry) return false;
+    return norm(personName) === norm(entry.name) || (entry.aliases || []).some((a) => norm(a) === norm(personName)) || findPerson(ctx.cast, personName) === entry;
+}
+
+/** "She holds the travel mug in her right hand." for what the card says this person holds and the action does not already say. */
+function holdingSentence(card, figure, ctx) {
+    const mine = card.holding.filter((h) => sameHolder(h.person, figure.cast, ctx) || norm(h.person) === norm(figure.name));
+    const said = `${figure.action || ''}`;
+    const parts = mine.filter((h) => newWords(h.object, said) >= 1 || !h.object).map((h) => ({ ...h, phrase: handPhrase(h.hand, pronouns(figure.cast).his) }));
+    if (!parts.length) return '';
+    const { He } = pronouns(figure.cast);
+    const verb = He === 'They' ? 'hold' : 'holds';
+    return `${He} ${verb} ${parts.map((h) => `${objectPhrase(h.object, ctx)}${h.phrase ? ` ${h.phrase}` : ''}`).join(' and ')}.`;
+}
+
+/** "She is at the kitchen island." - where the person is in the place, when nothing already said it. */
+function spotSentence(card, figure, ctx, said, swap = (t) => t) {
+    const mine = card.spots.find((x) => sameHolder(x.person, figure.cast, ctx) || norm(x.person) === norm(figure.name));
+    if (!mine || newWords(mine.spot, said) < 2) return '';
+    const { He } = pronouns(figure.cast);
+    return `${He} ${He === 'They' ? 'are' : 'is'} ${swap(mine.spot).replace(/^(?:is|are)\s+/i, '')}.`;
+}
+
+/** What a held object is called in the prompt: its set-book label ("the sleek travel mug") or its own name in lower case with an article. */
+function objectPhrase(name, ctx) {
+    const raw = String(name || '').trim();
+    if (!raw) return raw;
+    const ws = (t) => norm(t).split(' ').filter(Boolean);
+    const mine = ws(raw);
+    const entry = (ctx.setBook || []).find((e) => e.kind === 'object' && e.label && !/^the (place|object)$/i.test(e.label) && ws(e.name).length && ws(e.name).every((w) => mine.includes(w)) && mine.length <= ws(e.name).length + 1);
+    if (entry) return /^(the|a|an)\b/i.test(entry.label) ? entry.label : `the ${entry.label}`;
+    const lower = raw.charAt(0).toLowerCase() + raw.slice(1).toLowerCase();
+    return /^(the|a|an|his|her|their|your)\b/i.test(lower) ? lower : `${/^[aeiou]/i.test(lower) ? 'an' : 'a'} ${lower}`;
+}
+
+/** The sentences of `text` that say something `known` does not (at least three words more): the rest repeats it. Pure. */
+function keepNew(text, known) {
+    const t = String(text || '').trim();
+    if (!t) return '';
+    return t.split(/(?<=[.!?])\s+/).filter((part) => newWords(part, known) >= 3).join(' ');
 }
 
 /**
@@ -827,8 +914,8 @@ export function withoutVibrantColor(suffix) {
 }
 
 /** Tag-style models (Illustrious / Pony): a shared chunk plus one chunk per person. */
-function compileTags({ spec, cam, kind, figures, preset, placeText, background, description, persona, view = '', light = '' }) {
-    const dark = isDarkLight(light);
+function compileTags({ spec, cam, kind, figures, preset, placeText, background, description, persona, view = '', light = '', D = LEGACY_ANIMA_PATCHES }) {
+    const dark = isDarkLight(light) && D.darkDropsVibrant;
     const count = (sex) => figures.filter((f) => f.cast.sex === sex).length;
     const n = (k, word) => (k ? (k === 1 ? `1${word}` : `${k}${word}s`) : '');
     const counts = kind === 'insert' ? [] : [n(count('female'), 'girl'), n(count('male'), 'boy'), n(count('other'), 'other')].filter(Boolean);
@@ -853,7 +940,7 @@ function compileTags({ spec, cam, kind, figures, preset, placeText, background, 
         const tag = p.sex === 'female' ? '1girl' : p.sex === 'male' ? '1boy' : '1other';
         const adult = isYoung(p) ? '' : 'adult';
         const back = cam.angle === 'from behind';
-        return [tag, adult, withoutRearTraits(p.look), framedOutfit(p.outfit, cam.shot), (f === persona && cam.angle === 'over the shoulder') || back ? 'from behind' : f.action, back ? '' : f.expression]
+        return [tag, adult, withoutRearTraits(p.look), framedOutfit(p.outfit, cam.shot, D), (f === persona && cam.angle === 'over the shoulder') || back ? 'from behind' : f.action, back ? '' : f.expression]
             .filter(Boolean).join(', ');
     });
     return [shared, ...persons];
@@ -863,7 +950,7 @@ function compileTags({ spec, cam, kind, figures, preset, placeText, background, 
  * What the quality check should find in the finished picture: the main figures with their look and
  * outfit, the key action, and the frame's kind. Pure.
  */
-const WRITTEN_THING = /\b(newspapers?|headlines?|letters? (?:from|to)|the letter|a letter|notes?|posters?|notices?|signs?|signboards?|books?|pages?|scrolls?|maps?|menus?|documents?|contracts?|papers?|writing|written|inscriptions?|inscribed|runes?|glyphs?|script|symbols?|question marks?|status (?:window|screen|panel)|interface|screens?|display|reads? (?:the|a|it))\b/i;
+export const WRITTEN_THING = /\b(newspapers?|headlines?|letters? (?:from|to)|the letter|a letter|notes?|posters?|notices?|signs?|signboards?|books?|pages?|scrolls?|maps?|menus?|documents?|contracts?|papers?|writing|written|inscriptions?|inscribed|runes?|glyphs?|script|symbols?|question marks?|status (?:window|screen|panel)|interface|screens?|display|reads? (?:the|a|it))\b/i;
 
 export function frameExpectation(spec, camera, ctx) {
     const { kind, cam, pov, figures, swap, clean, persona, ownHands } = frameContext(spec, camera, ctx);
@@ -873,7 +960,7 @@ export function frameExpectation(spec, camera, ctx) {
     if (figures.length) {
         lines.push(`Main figures (exactly ${figures.length}):`);
         for (const f of figures) {
-            const outfit = framedOutfit(f.cast.outfit, cam.shot);
+            const outfit = framedOutfit(f.cast.outfit, cam.shot, dialectOf(ctx));
             const off = (f.cast.takenOff || []).length ? ` Has taken off (must NOT be wearing now): ${f.cast.takenOff.join(', ')}.` : '';
             const fromBehind = cam.angle === 'over the shoulder' && f === persona && figures.length > 1;
             lines.push(`- "${f.label}": ${[withoutAbsences(f.cast.look || ''), outfit ? `wearing ${outfit}` : ''].filter(Boolean).join('; ') || 'no stated look'}.${off} Doing: ${fromBehind ? 'seen from behind in the foreground' : (clean(f.action || '') || '-')}`);

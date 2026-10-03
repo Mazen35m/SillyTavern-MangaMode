@@ -67,18 +67,25 @@ export function mergeSet(known, fresh) {
     return out;
 }
 
-/** The place entry a beat's location refers to: the most shared words, at least one. Pure. */
-export function matchPlace(location, entries) {
+/**
+ * The place entry a beat's location refers to: the most shared words, at least one. Pure.
+ * `strict` (moment pipeline): the shared words must be at least half of the location's words or half of
+ * the entry's name. One shared word ("luxury" in "Sleek Luxury Car" and "Luxury High-Rise Kitchen")
+ * is no match: the car was drawn in the kitchen (2026-10-03).
+ */
+export function matchPlace(location, entries, { strict = false } = {}) {
     const loc = new Set(words(location));
     if (!loc.size) return null;
     let best = null;
     let bestScore = 0;
     for (const entry of entries || []) {
-        if (entry.kind === 'object') continue;
         const w = words(entry.name);
-        const shared = w.filter((x) => loc.has(x)).length;
         const exact = key(entry.name) === [...loc].join(' ');
+        // An object the reader filed as an object (a car) but later uses as a location is that place, by its exact name.
+        if (entry.kind === 'object' && !(strict && exact)) continue;
+        const shared = w.filter((x) => loc.has(x)).length;
         const score = exact ? 100 : shared / Math.max(1, w.length);
+        if (strict && !exact && shared / loc.size < 0.5 && shared / Math.max(1, w.length) < 0.5) continue;
         if (shared && score > bestScore) { best = entry; bestScore = score; }
     }
     return best;

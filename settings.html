@@ -72,6 +72,14 @@
             </select>
             <small id="manga_prompt_style_hint"></small>
 
+            <label for="manga_model_adapter">Model adapter (the wording and fixes your image model needs)</label>
+            <select id="manga_model_adapter" class="text_pole"></select>
+            <small id="manga_model_adapter_hint">A better model needs a new adapter, not a new Manga Mode. "Automatic" picks one from the way prompts are written above.</small>
+
+            <label for="manga_style_profile">Look (independent of the model)</label>
+            <select id="manga_style_profile" class="text_pole"></select>
+            <label for="manga_artist_style">Artist style (optional; Anima: names without @, separated by commas)</label>
+            <input id="manga_artist_style" class="text_pole" type="text" placeholder="">
             <label for="manga_custom_workflow_name">Workflow</label>
             <div class="flex-container">
                 <select id="manga_custom_workflow_name" class="text_pole flex1"></select>

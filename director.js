@@ -1,6 +1,7 @@
 import { chooseLayout, frameGenerationSize, MAX_FRAMES } from './page-layout.js';
 import { sameName } from './cast-book.js';
 import { placeWords } from './util.js';
+import { momentCamera } from './moment-cards.js';
 
 // Phase 4: Visual Director. Turns one parsed scene into an ordered list of webtoon panels and
 // decides - in code, not by asking the model - how each panel is produced:
@@ -391,7 +392,7 @@ export function splitLongSpeech(specs, dialogue, { maxLines = 3 } = {}) {
             const chunk = idx.slice(k * size, (k + 1) * size);
             if (!chunk.length) continue;
             // The next part of a speech is the speaker talking - not a second copy of the whole frame
-            // (Karen "spins toward the doorway" was drawn twice in a row, once per part).
+            // ("spins toward the doorway" was drawn twice in a row, once per part).
             const speaker = lines[chunk[0]]?.speaker;
             const own = k > 0 ? (spec.people || []).find((p) => sameName(p?.name, speaker)) : null;
             const talking = own ? { people: [own], characters: [own.name], description: '', interaction: '' } : {};
@@ -639,7 +640,8 @@ export function planPanels(scene, options = {}) {
 function cameraOf(spec, scene) {
     const camera = spec?.camera || scene?.camera || { shot: 'medium shot', angle: 'eye level' };
     if (spec?.kind === 'establishing') return { ...camera, shot: 'wide shot' };
-    return camera;
+    // A frame with a moment card is framed by what shows its facts (nothing changes for a frame without one).
+    return momentCamera(spec, camera);
 }
 
 /** Size of a single-frame panel: establishing views and inserts get their own shapes. */

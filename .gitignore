@@ -1,3 +1,13 @@
 Claude outputs/
 node_modules/
 *.log
+
+# Test recordings, chat data and generated pictures never belong in the repository (see docs/TESTING.md).
+fullchat.json
+r[0-9][0-9].json
+snapshot-*.json
+requests*.json
+_*_20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+manga_*.png
+zz_*.png
+*.sheet.png

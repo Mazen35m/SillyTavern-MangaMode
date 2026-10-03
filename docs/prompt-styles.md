@@ -1,5 +1,8 @@
 # Prompt Styles and model profiles
 
+> **From 1.1 the planner (Direct) writes sentence prompts for every style.** `natural` is what it is made for. The `tags` and `tags_pony` rows below describe the 1.0.x prompts
+> (still used to redraw older pages); for a tag-only model (Illustrious, NoobAI, Pony) the 1.0.1 release serves better. See `DIRECT.md`.
+
 ## Prompt Style (text format only)
 
 | Style | Parser field used | Wrap | Per-panel output (consistency on) |
@@ -10,7 +13,7 @@
 
 Stored in `extensionSettings.mangaMode.promptStyle` and `.promptPresets[style]`; both are part of the per-message cache hash. Each generated panel records `promptStyle` and `modelProfile`, shown in the debug block. With consistency off every style falls back to the original single-field prompt.
 
-The parser always returns both forms (tags and sentences), so changing style never changes the parser.
+The 1.0.x parser returned both forms (tags and sentences); Direct returns one frame description and the style only changes the prefix, suffix and wording around it.
 
 ## Model profiles (model-profiles.js)
 

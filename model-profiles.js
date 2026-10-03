@@ -29,6 +29,8 @@ export function profileFromSettings(settings, { id, name, notes = '' } = {}) {
         id: id || slug(name || settings.comfy?.checkpoint || settings.comfy?.unet),
         name: name || settings.comfy?.checkpoint || settings.comfy?.unet || 'Profile',
         promptStyle: settings.promptStyle,
+        // Which model adapter the prompts are tuned for ('' = decided by the Prompt Style).
+        adapter: settings.modelAdapter || '',
         // The prefix/suffix this model wants for its Prompt Style (quality tags differ per model even
         // within one style). Copied into promptPresets[style] when the profile is applied.
         promptPreset: preset ? { prefix: preset.prefix || '', suffix: preset.suffix || '' } : null,
@@ -41,6 +43,7 @@ export function profileFromSettings(settings, { id, name, notes = '' } = {}) {
 export function applyProfile(settings, profile) {
     if (!profile) return settings;
     if (profile.promptStyle) settings.promptStyle = profile.promptStyle;
+    if (profile.adapter !== undefined) settings.modelAdapter = profile.adapter;
     if (profile.promptPreset && settings.promptPresets?.[settings.promptStyle]) {
         settings.promptPresets[settings.promptStyle].prefix = profile.promptPreset.prefix || '';
         settings.promptPresets[settings.promptStyle].suffix = profile.promptPreset.suffix || '';
@@ -72,6 +75,7 @@ export function ensureProfiles(settings) {
             id: 'illustrious-xl-v01',
             name: 'Illustrious-XL v0.1 (tags)',
             promptStyle: 'tags',
+            adapter: 'illustrious',
             promptPreset: { prefix: '', suffix: 'masterpiece, best quality, colored manhwa style, webtoon illustration, full color, clean digital lineart, cel shading, vibrant colors' },
             generation: { family: 'checkpoint', checkpoint: 'illustriousXL_v01.safetensors', unet: '', unetDtype: 'default', clip: '', clipType: 'stable_diffusion', vae: '', sampler: 'euler_ancestral', scheduler: 'karras', steps: 28, cfg: 6, width: 896, height: 1152, modelNegative: '', loras: '' },
             notes: 'Example of a single-checkpoint model (SDXL / Illustrious / NoobAI). Put your own checkpoint file name in the Image model fields.',

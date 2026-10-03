@@ -2,15 +2,16 @@
 
 ## The pipeline for one reply
 
-1. **Story reader** (`scene-parser.js`). An LLM reached through a SillyTavern Connection Profile reads the finished reply
-   and returns a storyboard as JSON: the cast, the places, and a list of "beats" (one per picture) with the camera
-   (shot and angle), the light, who is where, what they do, and which dialogue lines belong to the frame. It never writes
-   new story. Code then completes and corrects the storyboard (first-person mode, shot variety, composition, balloons).
+1. **Story reader** (`direct-path.js`, the Direct planner, see `docs/DIRECT.md`). An LLM reached through a SillyTavern Connection Profile reads the finished reply
+   in one call and returns frames as JSON: for every picture what happens, the camera (shot and angle), the light, who is visible and who they look at,
+   which objects and how much of the place, and which dialogue lines belong to it; plus the dialogue, the new people and places, and the state at the end
+   (place, light, who holds what). It never writes new story. Code checks the answer and names any problem (one retry, then a visible error); it does not repair or invent data.
+   Then the page planner (`director.js`, `frame-plan.js`) and the balloon code read it as before. (`scene-parser.js` is the 1.0.x reader, kept so older pages can still be redrawn the way they were planned.)
 2. **World book, cast book, set book** (`world-book.js`, `cast-book.js`, `set-book.js`). Written once per chat from the character card,
    persona and lorebook, and extended as the story goes: how people dress, what places look like, and a fixed look for every named person.
    Every frame prompt is built from them, so the same person is described the same way each time.
-3. **Prompt builder** (`prompt-builder.js`). Turns one beat into a prompt for the image model, in the style you chose
-   (tag list, tag list with Pony score prefix, or sentences). Names are replaced by visual labels, so the image model never sees them.
+3. **Prompt** (`direct-path.js` `assembleDirectFrame`, `direct-text.js`). Written at draw time as sentences from the frame: the moment, the fixed look of only the people the frame shows,
+   the place, objects and light, with your look's prefix and suffix. Names are replaced by visual labels, so the image model never sees them. (`prompt-builder.js` still builds the prompts of older pages and holds shared helpers.)
 4. **Drawing** (`image-generator.js`, `custom-workflow.js`). ComfyUI draws the frame with the built-in workflow or with a workflow you saved
    in ComfyUI (the bridge add-on copies it into SillyTavern). Close-ups can be cut from a larger picture and redrawn sharper (detail pass).
 5. **Quality check** (`vision-check.js`). A vision model compares each finished picture with its frame (every main figure present once,
@@ -23,11 +24,14 @@
 
 - `index.js` - the pipeline and the settings panel; `settings.js` / `settings.html` - defaults and panel; `job-key.js` - decides when a saved page is still valid.
 - `director.js`, `frame-plan.js` - panel planning; `panel-crop.js`, `image-analysis.js` - crops and head finding.
+- `model-adapters.js` - model adapters and looks (see `docs/RULES.md`); `direct-path.js`, `direct-text.js` - the Direct planner and its sentence care (see `docs/DIRECT.md`); `moment-cards.js` - the superseded card experiment (see `docs/MOMENT-CARDS.md`).
 - `model-profiles.js` - saved setups per image model; `custom-workflow.js` and `comfyui-bridge/` - your own ComfyUI workflows.
 - `character-refs.js` - reference pictures for character consistency (optional, For strong GPUs).
-- `tests/` - ten suites that need only Node: `node tests/unit.test.mjs` and so on. `tools/` - helpers for live studies (run in the browser console).
+- `tests/` - suites that need only Node: `node tests/unit.test.mjs` and so on. `tools/` - helpers for live studies (run in the browser console).
 
 ## What was measured
+
+The figures in this section were measured on 1.0.x. The Direct planner's own comparison and cost are in `docs/DIRECT.md`.
 
 Everything below was measured on three test chats (different character cards), with Webtoon and first-person mode on, using
 Anima Turbo on an RTX 3070 (8 GB) and google/gemini-3.8-flash as story reader and checker.

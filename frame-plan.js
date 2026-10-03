@@ -12,12 +12,12 @@ const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').
  * @param {{personaName?: string}} options
  * @returns {{mode: 'closeByCrop'|'wideCrop'|'plain', spec: object, camera: object, width: number, height: number, focus?: string, detailCamera?: object, refNames: string[]}}
  */
-export function drawPlanFor({ spec, camera, size, aspect, focusName }, { personaName = '' } = {}) {
+export function drawPlanFor({ spec, camera, size, aspect, focusName }, { personaName = '', cropFrames = true } = {}) {
     camera = contactCamera(spec, camera);
     const people = (spec?.characters || []).length;
     // A close-up of a person is drawn as an upper-body picture and cut to the head the quality check
     // found (asked for a close-up directly, Anima drew whole bodies and second copies of the person).
-    if (CLOSE_SHOTS.has(camera?.shot) && people >= 1 && spec?.kind !== 'insert' && spec?.kind !== 'establishing') {
+    if (cropFrames && CLOSE_SHOTS.has(camera?.shot) && people >= 1 && spec?.kind !== 'insert' && spec?.kind !== 'establishing') {
         const focus = (spec.characters || []).find((n) => same(n, focusName)) || spec.characters[0];
         const playerDropped = !same(focus, personaName) && (spec.characters || []).some((n) => same(n, personaName));
         const solo = { ...spec, characters: [focus], people: (spec.people || []).filter((p) => same(p?.name, focus)), background: '', interaction: '' };
@@ -29,7 +29,7 @@ export function drawPlanFor({ spec, camera, size, aspect, focusName }, { persona
     const hidesPlayer = camera?.angle === 'over the shoulder' || camera?.angle === 'pov';
     const refNames = (spec?.characters || []).filter((n) => !(hidesPlayer && same(n, personaName)));
     // A tall, narrow frame is drawn wider and cut to shape around the heads.
-    if (aspect && aspect < 0.72 && people >= 1 && spec?.kind !== 'establishing') {
+    if (cropFrames && aspect && aspect < 0.72 && people >= 1 && spec?.kind !== 'establishing') {
         const pixels = size.width * size.height;
         const drawAspect = people >= 2 ? 1 : 0.85;
         const snap = (v) => Math.min(1664, Math.max(512, Math.round(v / 64) * 64));

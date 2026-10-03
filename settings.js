@@ -1,4 +1,5 @@
 import { ensureProfiles } from './model-profiles.js';
+import { ensureStyleFields } from './model-adapters.js';
 
 export const EXTENSION_NAME = 'third-party/SillyTavern-MangaMode';
 export const MODULE_KEY = 'mangaMode';
@@ -93,6 +94,15 @@ export const DEFAULT_SETTINGS = {
             suffix: 'Clean digital lineart, cel shading, vibrant full color.',
         },
     },
+    /**
+     * Which image model the prompts are tuned for (model-adapters.js): '' = decided by the Prompt Style (sentences -> Anima,
+     * as before). An adapter holds that model's wording, capabilities and patches; the core knows no model.
+     */
+    modelAdapter: '',
+    /** The look, separate from the model (model-adapters.js STYLE_PROFILES); 'custom' = the Prompt text below as written. Set on first load. */
+    // styleProfile: (not listed on purpose: ensureStyleFields decides it from the saved presets)
+    /** Anima artist tags ("name, other"): written as "@name" for Anima, "by name" for tag models, "in the style of" for sentence models. */
+    artistStyle: '',
     /** Saved per-model bundles (model-profiles.js). The first one is created from the current settings. */
     modelProfiles: [],
     activeProfileId: '',
@@ -171,6 +181,7 @@ export function getSettings(extensionSettings) {
     }
 
     ensureProfiles(settings);
+    ensureStyleFields(settings);
     return settings;
 }
 

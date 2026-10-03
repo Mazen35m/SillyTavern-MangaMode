@@ -4,7 +4,7 @@
 You chat as usual. After every character reply, Manga Mode turns that reply into a colored manhwa / webtoon page:
 the pictures are drawn on your own PC, and the dialogue appears as speech balloons on top of them.
 
-**Status: 1.0.1 beta** - early public release. It works and has been tested live, but it is a beta (see "Honest limits" below).
+**Status: 1.1.0 beta** - early public release. It works and has been tested live, but it is a beta (see "Honest limits" below).
 License: MIT (free to use, change and share).
 
 ## What you get
@@ -20,16 +20,17 @@ License: MIT (free to use, change and share).
 
 ## How it works
 
-1. A **story reader** (an LLM you pick in SillyTavern, e.g. Gemini through OpenRouter) reads the finished reply and plans the frames like a manhwa artist:
-   who is where, the camera angle, the light, who says what. It never writes new story.
+1. A **story reader** (an LLM you pick in SillyTavern, e.g. Gemini through OpenRouter) reads the finished reply once and plans the frames like a manhwa artist (the **Direct** planner):
+   what happens, who is visible and who they look at, the camera angle, the light, who says what. Code checks the answer and asks for one correction if something is wrong. It never writes new story.
 2. **ComfyUI** (free, runs on your PC) draws every frame.
 3. The **quality check** (a vision model) looks at each picture and asks for a redraw when something is clearly wrong.
 4. The pictures are laid out as a page and the balloons are drawn on them.
 
 ## What it costs
 
-ComfyUI is free and local. The story reader and the quality check use an LLM through OpenRouter (or another connection you choose):
-measured on three test chats, about **$0.04-0.06 per reply** with google/gemini-3.8-flash. Frames per reply and redraws are your setting, so you control the time and the cost.
+ComfyUI is free and local. The story reader and the quality check use an LLM through OpenRouter (or another connection you choose).
+Measured with google/gemini-3.8-flash: the story reader costs about **$0.009-0.012 per reply** (the first reply of a chat adds the one-time world book, included in $0.012 there);
+the quality check is extra (one 4-frame page with one redraw cost $0.021 in the closing test; in the 1.0.x tests the reader and the checks together came to $0.04-0.06 per reply). "Redraw images" makes no reader call. Frames per reply and redraws are your setting, so you control the time and the cost.
 
 ## Honest limits
 
@@ -37,6 +38,15 @@ The pictures come from a small local image model (tested with Anima Turbo on an 
 first-person impact, repeats compositions, and the layout of a room or a recurring character's outfit can still change between frames.
 An outside editor (Gemini) scored test replies 3-4 of 10 on average. Everything that was measured, including what failed, is in `docs/HOW-IT-WORKS.md`.
 Strong graphics cards can switch on slower extras (detail pass, character reference pictures, matching faces) under "For strong GPUs".
+
+**Prompts are sentences.** The Direct planner writes sentence prompts, which suits Anima, Qwen-Image, Flux and Z-Image. Tag-only models (Illustrious, NoobAI, Pony)
+still work, but 1.0.1 beta served them better; stay on that release for them.
+
+**Direct against a hand-written reference.** On saved replies, key frame only, one rater: no winner under the pass rule that was fixed before the test (Direct missed one tuning criterion by 0.006);
+overall scores 0.868 (tuning) and 0.899 (validation) against 0.872 and 0.868 for the hand reference. A small sample and an imperfect reference: it does not show that the image model is used to its full capacity.
+Details and limits: `docs/DIRECT.md`.
+
+**Going back.** Install release v1.0.1-beta over this folder if you want the old planner. Your chats and saved pages are not touched by either version; pages drawn by 1.0.x stay as they are.
 
 ## The settings, in short
 
@@ -54,7 +64,7 @@ webtoon mode, first-person view, balloons, the story-reader profile, the image-m
 | SillyTavern | 1.19 or newer | anywhere |
 | ComfyUI | any recent (tested: ComfyUI-Easy-Install, ComfyUI 0.33) | anywhere, must run on http://127.0.0.1:8188 |
 | Image model | `anima-turbo-v1.1.safetensors` + `qwen_3_06b_base.safetensors` + `qwen_image_vae.safetensors` | ComfyUI/models/diffusion_models, text_encoders (or clip), vae - links in DOWNLOADS.md |
-| OpenRouter account | for the story reader and the quality check (both google/gemini-3.8-flash) - about $0.04-0.06 per reply | key goes into SillyTavern |
+| OpenRouter account | for the story reader and the quality check (both google/gemini-3.8-flash) - the reader about $0.009-0.012 per reply, the quality check extra | key goes into SillyTavern |
 | Graphics card | tested on an RTX 3070 (8 GB) | |
 
 The defaults of Manga Mode already point at these three Anima Turbo files, so with them in place it draws with the **built-in workflow** - nothing else to build or save in ComfyUI.
@@ -79,7 +89,7 @@ The defaults of Manga Mode already point at these three Anima Turbo files, so wi
    OpenRouter key, model google/gemini-3.8-flash, then Connection Profiles -> save it as
    **Manga Parser** (the profile settings are in `recommended-settings.json` -> `mangaParserConnectionProfile`).
 4. Start SillyTavern, open Extensions -> Manga Mode and check: Enabled, scene parser profile = Manga Parser, Workflow = "Built-in workflow", Quality check ticked.
-5. Chat. Each character reply gets a page; the image button on a message draws or redraws it.
+5. Chat. Each character reply gets a page; the image button on a message reads the reply again and draws a new page; "Redraw images" under a page draws new pictures from the same frames without a new reader call.
 
 **Want to use your own ComfyUI workflow (optional)?** Copy the folder `comfyui-bridge` to `ComfyUI/custom_nodes/` and rename it
 `ComfyUI-MangaMode-Bridge`. Open its `mangamode_bridge.json` and write your SillyTavern folder (the one with Start.bat), e.g.
@@ -99,13 +109,13 @@ The defaults already use Anima Turbo. `recommended-settings.json` holds the auth
 
 ## Where things are
 
-- `index.js` - the pipeline (story -> frames -> pictures -> page); `scene-parser.js` - the
-  storyboard director; `prompt-builder.js` - frame prompts; `vision-check.js` - quality check;
+- `index.js` - the pipeline (story -> frames -> pictures -> page); `direct-path.js`, `direct-text.js` - the Direct planner (the story reader's frames, checks and prompts);
+  `scene-parser.js` - the 1.0.x storyboard director (kept for older pages); `prompt-builder.js` - frame prompts; `vision-check.js` - quality check;
   `world-book.js`, `cast-book.js`, `set-book.js` - consistency; `custom-workflow.js` - ComfyUI
   workflows; `character-refs.js` - reference pictures for the IP-Adapter.
-- `docs/HOW-IT-WORKS.md` - the pipeline, the files and what was measured; `docs/RUNNING.md` - running and re-testing;
+- `docs/HOW-IT-WORKS.md` - the pipeline, the files and what was measured; `docs/RULES.md` - which rules belong to the story, the look or one image model; `docs/DIRECT.md` - the Direct planner, its rules, cost and limits; `docs/MOMENT-CARDS.md` - study notes of the superseded card experiment; `docs/TESTING.md`; `docs/RUNNING.md` - running and re-testing;
   `DOWNLOADS.md` - every model and node with its link.
-- Tests: `node tests/<name>.test.mjs` (10 suites in `tests/`, all must print passed).
+- Tests: `node tests/<name>.test.mjs` (the suites in `tests/`, all must print passed).
 
 ## Versions
 

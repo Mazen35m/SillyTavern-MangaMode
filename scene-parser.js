@@ -13,6 +13,7 @@ import { formatKnownCast } from './cast-book.js';
 import { formatWorld } from './world-book.js';
 import { findPerson, sameName, mergeCast, uniqueLabels } from './cast-book.js';
 import { samePlace } from './director.js';
+import { momentSchema, stateSchema, MOMENT_RULES, formatKnownState, cleanState } from './moment-cards.js';
 import { FAR_WORDS, FOREGROUND_WORDS, LOOK_WORDS, UP, clausesOf, sentencesOf, postureOf, postureWords, withoutCameraClause } from './text-rules.js';
 
 export const PARSER_TIMEOUT_MS = 120000;
@@ -28,7 +29,7 @@ const CAMERA = {
 };
 
 /** The answer's shape. Built per call: the balloon budget and thoughts change it. */
-export function buildSchema({ maxImages = 10, innerThoughts = true } = {}) {
+export function buildSchema({ maxImages = 10, innerThoughts = true, moment = false } = {}) {
     const bubbleTypes = ['speech', 'shout', 'thought', 'narration', 'none', ...(innerThoughts ? ['inner'] : [])];
     const person = {
         type: 'object',
@@ -45,6 +46,7 @@ export function buildSchema({ maxImages = 10, innerThoughts = true } = {}) {
     const beat = {
         type: 'object',
         properties: {
+            ...(moment ? { moment: momentSchema() } : {}),
             new_panel: { type: 'boolean' },
             emphasis: { type: 'string', enum: ['main', 'normal', 'minor'] },
             kind: { type: 'string', enum: ['character', 'establishing', 'insert'] },
@@ -61,7 +63,7 @@ export function buildSchema({ maxImages = 10, innerThoughts = true } = {}) {
             same_moment: { type: 'boolean' },
             sfx: { type: 'string' },
         },
-        required: ['new_panel', 'emphasis', 'kind', 'location', 'camera', 'light', 'view', 'description', 'interaction', 'background', 'people', 'dialogue_indices', 'intensity', 'same_moment', 'sfx'],
+        required: [...(moment ? ['moment'] : []), 'new_panel', 'emphasis', 'kind', 'location', 'camera', 'light', 'view', 'description', 'interaction', 'background', 'people', 'dialogue_indices', 'intensity', 'same_moment', 'sfx'],
         additionalProperties: false,
     };
     return {
@@ -119,13 +121,14 @@ export function buildSchema({ maxImages = 10, innerThoughts = true } = {}) {
                 },
             },
             beats: { type: 'array', items: beat, description: `The frames, in reading order. At most ${maxImages}.` },
+            ...(moment ? { state: stateSchema() } : {}),
         },
-        required: ['storyboard', 'setting', 'cast', 'places', 'dialogue', 'beats'],
+        required: ['storyboard', 'setting', 'cast', 'places', 'dialogue', 'beats', ...(moment ? ['state'] : [])],
         additionalProperties: false,
     };
 }
 
-export function systemPrompt({ maxPanels = 6, maxImages = 10, innerThoughts = true, povMode = false } = {}) {
+export function systemPrompt({ maxPanels = 6, maxImages = 10, innerThoughts = true, povMode = false, moment = false } = {}) {
     return `You are the storyboard artist of a manhwa (webtoon) adaptation of an interactive story. You receive ONE reply that a roleplay AI already wrote, and you plan how that reply is drawn: which moments get a frame, who is in each frame, what they do, and how the camera sees it. You never write story, never continue it and never change what happens.
 
 STORYBOARD (write it first, in "storyboard")
@@ -186,7 +189,7 @@ DIALOGUE
 - The message's quoted lines and its thoughts (text in \`backticks\`, marked "(thought)") are already cut into numbered balloons (L0, L1, ...). In "dialogue", give EVERY numbered balloon exactly once, in order, as {"line": N, "text": ""} with its "speaker" and "bubble_type" (speech, shout, thought, narration). Never merge, split, reorder or retype them. A numbered quote that is not said aloud (a title, a sign, a quoted word) gets bubble_type "none".
 - A line that is NOT in the list goes in "text" with "line": -1: speech the message wrote without quotation marks, cut into balloons of 8-15 words at natural boundaries, word for word.${innerThoughts ? `
 - INNER THOUGHTS: where the narration states what a character feels but does not say, you MAY add one very short first-person thought (2-6 words) with bubble_type "inner" and "line": -1. At most 2 per reply, never for the player.` : ''}
-- Put every balloon in the frame where it is said or thought ("dialogue_indices", indices into your "dialogue" array, in order). At most 3 balloons per frame: a long speech is spread over several frames, each with what the speaker does while saying that part. A shouted line and a calm line are never in the same frame (the face changes). The player's own lines are never balloons.${povMode ? POV_MODE_RULES : ''}`;
+- Put every balloon in the frame where it is said or thought ("dialogue_indices", indices into your "dialogue" array, in order). At most 3 balloons per frame: a long speech is spread over several frames, each with what the speaker does while saying that part. A shouted line and a calm line are never in the same frame (the face changes). The player's own lines are never balloons.${moment ? MOMENT_RULES : ''}${povMode ? POV_MODE_RULES : ''}`;
 }
 
 /**
@@ -202,11 +205,13 @@ FIRST-PERSON MODE - these rules override anything above that conflicts with them
 - A person who looks AT the player looks at "the viewer"; a person who only talks to the player is not always looking at them (see EYE CONTACT).
 - The player's own actions are shown by what the player sees: their hands, what they hold, how the others react.`;
 
-function userPrompt(messageText, { characterName, userName, world, knownCast, knownSet, sceneContext, speechLines }) {
+function userPrompt(messageText, { characterName, userName, world, knownCast, knownSet, knownState, sceneContext, speechLines }) {
     const blocks = [];
     if (world) blocks.push('WORLD BOOK (how this story looks):', formatWorld(world), '');
     blocks.push('KNOWN CAST (use these names; their looks are fixed):', knownCast?.length ? formatKnownCast(knownCast, { personaName: userName }) : '(nobody yet)', '');
     blocks.push('KNOWN SET (places and objects already drawn; reuse these names):', knownSet?.length ? formatKnownSet(knownSet) : '(none yet)', '');
+    const stateText = formatKnownState(knownState);
+    if (stateText) blocks.push('STATE (how the previous reply ended: who holds what, where people are, the light; carry it forward unless this reply changes it):', stateText, '');
     if (sceneContext?.previousReply) blocks.push('CONTEXT ONLY - the end of the previous reply (who/where continuity):', '"""', sceneContext.previousReply, '"""', '');
     if (sceneContext?.playerAction) blocks.push(`CONTEXT - the player's (${userName}) own message, which this reply answers:`, '"""', sceneContext.playerAction, '"""', '');
     blocks.push(`Reply written by: ${characterName}`, `The player is: ${userName}`, '', 'MESSAGE:', '"""', messageText, '"""', '');
@@ -442,7 +447,7 @@ export function withPostureCarried(beats, cast = []) {
     });
 }
 
-export function completeBeats(scene, { userName = '', cast = null, povMode = false } = {}) {
+export function completeBeats(scene, { userName = '', cast = null, povMode = false, sideAlternation = true } = {}) {
     if (!Array.isArray(scene?.beats)) return scene;
     const people = cast || scene.cast || [];
     let place = String(scene.setting || scene.scene || '').trim();
@@ -479,7 +484,7 @@ export function completeBeats(scene, { userName = '', cast = null, povMode = fal
     const drawn = povMode ? withPlayerUnseen(beats, people, userName) : beats;
     // The raw beats are kept only while first-person mode has changed something; with the mode off they are the beats.
     const { rawBeats: _oldRaw, povMode: _oldPov, ...rest } = scene;
-    return { ...rest, beats: withPostureCarried(withComposition(withShotVariety(drawn)), people), characters, ...(povMode ? { povMode: true, rawBeats: beats } : {}) };
+    return { ...rest, beats: withPostureCarried(sideAlternation ? withComposition(withShotVariety(drawn)) : withShotVariety(drawn), people), characters, ...(povMode ? { povMode: true, rawBeats: beats } : {}) };
 }
 
 /** The shot a middle frame changes to when three frames in a row would have the same distance. */
@@ -554,7 +559,7 @@ export function sceneProblem(scene) {
  */
 export async function parseScene(context, connectionProfileId, messageText, meta) {
     if (!connectionProfileId) throw new Error('No Connection Profile selected for the Manga Scene Parser. Set one in Manga Mode settings.');
-    const budget = { maxPanels: meta.maxPanels || 6, maxImages: meta.maxImages || 10, innerThoughts: meta.innerThoughts !== false, povMode: Boolean(meta.povMode) };
+    const budget = { maxPanels: meta.maxPanels || 6, maxImages: meta.maxImages || 10, innerThoughts: meta.innerThoughts !== false, povMode: Boolean(meta.povMode), moment: Boolean(meta.moment) };
     const speech = extractSpeechLines(messageText);
     const messages = [
         { role: 'system', content: systemPrompt(budget) },
@@ -581,7 +586,8 @@ export async function parseScene(context, connectionProfileId, messageText, meta
     // people only, the owner of an over-the-shoulder shot was not found and the frame was turned to eye level
     // for good, before the draw-time pass could have fixed it.
     const wholeCast = uniqueLabels(mergeCast(meta?.knownCast || [], scene.cast || []));
-    scene = completeBeats({ ...scene, parserVersion: 4 }, { userName: meta?.userName, cast: wholeCast, povMode: Boolean(meta?.povMode) });
+    // parserVersion 5 = the storyboard carries moment cards and a state; 4 = the classic storyboard.
+    scene = completeBeats({ ...scene, parserVersion: budget.moment ? 5 : 4, ...(budget.moment ? { state: cleanState(scene.state) } : {}) }, { userName: meta?.userName, cast: wholeCast, povMode: Boolean(meta?.povMode), sideAlternation: !budget.moment });
     const problem = sceneProblem(scene);
     if (problem) {
         const error = new Error(`The scene director returned an unusable scene: ${problem}.`);
@@ -597,9 +603,9 @@ export async function parseScene(context, connectionProfileId, messageText, meta
  * "Redraw images" on a saved storyboard gets every later fix too (it used to reuse the beats exactly
  * as they were completed when first parsed). Idempotent. Pure.
  */
-export function normalizeScene(scene, { userName = '', cast = null, povMode = false } = {}) {
+export function normalizeScene(scene, { userName = '', cast = null, povMode = false, sideAlternation = true } = {}) {
     if (!scene || typeof scene !== 'object') return scene;
-    return completeBeats(scene, { userName, cast, povMode });
+    return completeBeats(scene, { userName, cast, povMode, sideAlternation });
 }
 
 // The player's hands at work in a frame of the player alone: drawn first-person, not left out. A hand or a

@@ -36,6 +36,18 @@ function appendDebugBlock(panel, manga) {
 
     if (manga.promptStyle) {
         details.append($('<div>', { class: 'manga_debug_label' }).text(`Prompt style: ${manga.promptStyle}${manga.modelProfile ? ` - model profile: ${manga.modelProfile}` : ''}`));
+        details.append($('<div>', { class: 'manga_debug_label' }).text(`Model adapter: ${manga.modelAdapter || 'anima'} - look: ${manga.styleProfile || 'webtoon-color'} - planning: ${manga.pipeline || 'classic'}${manga.momentCards ? ' (moment cards used)' : ''}${manga.directVersion ? ` v${manga.directVersion}` : ''}`));
+        if (manga.pipelineNote) details.append($('<div>', { class: 'manga_debug_label' }).text(manga.pipelineNote));
+        const frames = (manga.scene?.beats || []).map((b, i) => (b.direct ? `Frame ${i + 1} (${b.direct.shot}, ${b.direct.angle}): ${b.direct.moment}\n  visible: ${(b.direct.shows?.people || []).map((p) => `${p.name} [${(p.parts || []).join(', ')}]${p.looks_at ? ` looks at ${p.looks_at}` : ''}`).join('; ') || '-'}; objects: ${(b.direct.shows?.objects || []).join(', ') || '-'}; place: ${b.direct.shows?.place || '-'} ${b.direct.place_name || ''}` : null)).filter(Boolean);
+        if (frames.length) {
+            details.append($('<div>', { class: 'manga_debug_label' }).text('Frames as the reader wrote them:'));
+            details.append($('<pre>', { class: 'manga_debug_pre' }).text(frames.join('\n')));
+        }
+        const cards = (manga.scene?.beats || []).map((b, i) => (b.moment ? `Frame ${i + 1}: ${(b.moment.facts || []).join(' / ')}\n  needs: ${(b.moment.needs || []).join(', ') || '-'}; holding: ${(b.moment.holding || []).map((h) => `${h.person} ${h.object} (${h.hand})`).join('; ') || '-'}; spots: ${(b.moment.spots || []).map((x) => `${x.person} ${x.spot}`).join('; ') || '-'}; invented: ${(b.moment.invented || []).join(', ') || '-'}` : null)).filter(Boolean);
+        if (cards.length) {
+            details.append($('<div>', { class: 'manga_debug_label' }).text('Moment cards (what each picture must show):'));
+            details.append($('<pre>', { class: 'manga_debug_pre' }).text(cards.join('\n')));
+        }
     }
     if (manga.world) {
         details.append($('<div>', { class: 'manga_debug_label' }).text(`World book: ${manga.world.summary || ''} (${manga.world.era_and_technology || ''})`));
@@ -335,6 +347,9 @@ export function renderMangaPanel(message, messageElement, { revealed, inProgress
             again.on('click', () => onRetry?.());
             panel.append(again);
         }
+        if (manga.status === 'done' && manga.pipeline && manga.pipeline !== 'direct' && manga.pipelineNote) {
+            panel.append($('<div>', { class: 'manga_status' }).text(manga.pipelineNote));
+        }
         if (stale) {
             // The text was edited after these pictures were drawn (with automatic drawing off nothing redraws them).
             panel.append($('<div>', { class: 'manga_status manga_error' }).text('The message was edited after these pictures were drawn - they show the old text.'));
@@ -350,7 +365,7 @@ export function renderMangaPanel(message, messageElement, { revealed, inProgress
         toggle.on('click', () => onToggleReveal?.(!revealed));
         const buttons = $('<div>', { class: 'manga_panel_buttons' }).append(toggle);
         if (manga.scene && onRedraw) {
-            const redraw = $('<div>', { class: 'menu_button manga_redraw_btn', title: 'Draw the images again from the same scene breakdown - no scene-parser call, no API cost.' }).text('Redraw images');
+            const redraw = $('<div>', { class: 'menu_button manga_redraw_btn', title: 'Draw the pictures again from the same frames and dialogue the reader wrote: no story-reader call. (The picture checker still runs, and still costs if it uses a paid model.) "Draw again" on the message reads the story again.' }).text('Redraw images');
             redraw.on('click', () => onRedraw());
             buttons.append(redraw);
         }

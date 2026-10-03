@@ -28,7 +28,7 @@ const PERSON = {
         sex: { type: 'string', enum: ['male', 'female', 'other'] },
         label: { type: 'string', description: 'A short visual handle with no name in it, unique in this list, from body, face, hair, species and role - not from clothes that can come off ("the silver-haired swordswoman", "the dark-haired young man").' },
         look: { type: 'string', description: 'Permanent look as short comma-separated phrases: species/people, apparent age, build, face, hair, eyes, skin, permanent marks - only what they have, never what they lack ("no scars").' },
-        outfit: { type: 'string', description: 'What they usually wear, every garment with one concrete colour and material, footwear included; armour, weapons and gear they carry. Empty only if the sources give no basis at all.' },
+        outfit: { type: 'string', description: 'ONE outfit, the one they wear when the story opens (never "alternatively" or a second outfit): every garment with one concrete colour and material, footwear included; armour, weapons and gear they carry. Empty only if the sources give no basis at all.' },
     },
     required: ['name', 'aliases', 'role', 'sex', 'label', 'look', 'outfit'],
     additionalProperties: false,

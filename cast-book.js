@@ -50,6 +50,17 @@ export function findPerson(cast, name) {
     return (cast || []).find((p) => sameName(p.name, name) || (p.aliases || []).some((a) => sameName(a, name))) || null;
 }
 
+/**
+ * One outfit per person: a bible entry that lists a second one ("...; alternatively a deep red silk robe") made the image
+ * model draw both (a robe over the blouse, even a second woman in the robe). The text before the alternative is the outfit.
+ * Pure.
+ */
+export function oneOutfit(text) {
+    const t = String(text || '').trim();
+    const cut = t.search(/\s*[;,.]?\s+(?:alternatively|otherwise|or\s+(?:sometimes|alternatively|else)|sometimes|occasionally)\b/i);
+    return (cut > 0 ? t.slice(0, cut) : t).replace(/[;,.\s]+$/, '').trim();
+}
+
 function clean(entry) {
     return {
         name: String(entry?.name || '').trim(),
@@ -58,7 +69,7 @@ function clean(entry) {
         sex: ['male', 'female', 'other'].includes(entry?.sex) ? entry.sex : 'other',
         label: stablePart(String(entry?.label || '').trim()),
         look: String(entry?.look || '').trim(),
-        outfit: String(entry?.outfit || '').trim(),
+        outfit: oneOutfit(entry?.outfit),
     };
 }
 

@@ -11,6 +11,9 @@ const LATER_DEFAULTS = {
     redrawMinor: undefined,
     characterReference: false,
     webtoonMode: false,
+    // Adapters, styles and moment cards (1.1): in the key only when they differ from what 1.0.x did.
+    modelAdapter: '',
+    artistStyle: '',
 };
 // Only read when a character reference is used at all (otherwise they cannot change a picture).
 const REFERENCE_DEFAULTS = {
@@ -57,6 +60,8 @@ export function jobKeyParts(messageText, rawSettings, { pipeline = '', workflowS
             if (settings.characterReference && settings[key] !== undefined && settings[key] !== fallback) changed[key] = settings[key];
         }
     }
+    // 'webtoon-color' and 'custom' read the same text as 1.0.x (the presets are in the key above); any other look changes pictures.
+    if (settings.styleProfile !== undefined && !['webtoon-color', 'custom'].includes(settings.styleProfile)) changed.styleProfile = settings.styleProfile;
     const names = Object.keys(changed).sort();
     if (names.length) parts.push(`more:${JSON.stringify(names.map((k) => [k, changed[k]]))}`);
     return parts;

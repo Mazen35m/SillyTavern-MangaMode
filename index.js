@@ -2,6 +2,9 @@ import { EXTENSION_NAME, getSettings } from './settings.js';
 import { parseScene, sceneProblem, normalizeScene } from './scene-parser.js';
 import { generatePanelImage, refinePanelImage, withSafetyNegative } from './image-generator.js';
 import { compileFrame, frameExpectation } from './prompt-builder.js';
+import { resolveAdapter, effectivePresets, ADAPTERS, STYLE_PROFILES } from './model-adapters.js';
+import { findKnownState, withoutMoments, readMoment } from './moment-cards.js';
+import { parseDirectScene, assembleDirectFrame, directExpectation, frameOfBeat, findKnownDirectState, DIRECT_VERSION } from './direct-path.js';
 import { drawPlanFor, redrawVariant, fallbackFromInsert } from './frame-plan.js';
 import { planPanels, messagesSinceFullBleed, wantsEstablishing } from './director.js';
 import { chooseLayout } from './page-layout.js';
@@ -22,7 +25,7 @@ import { customWorkflowStatus, listCustomWorkflows, loadCustomWorkflow, wantsRef
 const IMAGE_SUBFOLDER = 'manga-mode';
 
 /** Bump when the drawing pipeline changes: old cached pages are then redrawn only on request. */
-const PIPELINE_VERSION = 8;
+const PIPELINE_VERSION = 9;
 
 /** Messages whose job planned a full-bleed panel but has not committed yet (concurrent regenerations). */
 const pendingFullBleed = new WeakSet();
@@ -87,7 +90,7 @@ function getSceneContext(context, messageId, settings) {
  * `legacy` is the key 1.07 made, so pages saved by 1.07 are still found fresh.
  */
 function computeParamsHash(messageText, rawSettings, workflowSig = '', legacy = false) {
-    return hashString(JSON.stringify(jobKeyParts(messageText, rawSettings, { pipeline: `${PIPELINE_VERSION}:${WORLD_VERSION}`, workflowSig, legacy })));
+    return hashString(JSON.stringify(jobKeyParts(messageText, rawSettings, { pipeline: `${PIPELINE_VERSION}:${WORLD_VERSION}:direct${DIRECT_VERSION}`, workflowSig, legacy })));
 }
 
 /** What every page of this chat cost so far, over every attempt (the provider's own figures; null when none reported). */
@@ -170,6 +173,11 @@ async function processMessage(messageId, { force = false, redraw = false } = {})
     // "Redraw images": keep this message's storyboard (no director call) and draw it again. Only
     // storyboards from the current director carry the cast the frames are drawn from.
     const keptScene = redraw && existing?.scene?.parserVersion >= 4 && !sceneProblem(existing.scene) ? structuredClone(existing.scene) : null;
+    // A page planned by an earlier version (1.0.x classic, or the moment cards of 1.1 betas) is redrawn the way it was planned;
+    // every new reading, and every page that is read again ("Draw again"), is planned by Direct.
+    const earlierScene = keptScene && keptScene.pipeline !== 'direct' ? keptScene : null;
+    const directOn = !earlierScene;
+    const momentOn = Boolean(earlierScene && earlierScene.parserVersion === 5);
 
     // The last good result stays with the message while a new one is drawn: starting a redraw replaced
     // it with a placeholder, and a failure left only an error (the pictures and their link were lost).
@@ -198,10 +206,12 @@ async function processMessage(messageId, { force = false, redraw = false } = {})
         const knownCast = findKnownCast(context.chat, messageId, world?.cast || [], { personaName: context.name1 });
         const knownSet = findKnownSet(context.chat, messageId);
         const sceneContext = getSceneContext(context, messageId, settings);
+        // Direct: the reader writes each frame's moment and what is visible in it; the state the previous reply ended in goes in.
+        const knownState = directOn ? findKnownDirectState(context.chat, messageId) : (momentOn ? findKnownState(context.chat, messageId) : null);
 
         scene = keptScene || await withParserRetry(async () => {
             try {
-                const parsed = await parseScene(context, settings.connectionProfileId, text, {
+                const parsed = await (directOn ? parseDirectScene : parseScene)(context, settings.connectionProfileId, text, {
                     characterName: message.name,
                     userName: context.name1,
                     world,
@@ -213,6 +223,7 @@ async function processMessage(messageId, { force = false, redraw = false } = {})
                     innerThoughts: settings.innerThoughts,
                     povMode: Boolean(settings.playerPov),
                     reasoningEffort: settings.parserReasoning,
+                    knownState,
                 });
                 usage.parser.push(parsed.__usage || null);
                 return parsed;
@@ -227,29 +238,45 @@ async function processMessage(messageId, { force = false, redraw = false } = {})
         // The storyboard as drawn: completed again with the whole cast (people named in the background,
         // the shoulder of an over-the-shoulder view, carried postures), so a redraw of a saved
         // storyboard gets the same logic as a fresh one.
-        scene = normalizeScene(scene, { userName: context.name1, cast, povMode: Boolean(settings.playerPov) });
+        // A Direct scene is drawn exactly as the reader wrote it: none of the completion steps of the earlier planners is applied.
+        if (!directOn) scene = normalizeScene(scene, { userName: context.name1, cast, povMode: Boolean(settings.playerPov), sideAlternation: !momentOn });
         identities = cast.map((p) => ({ kind: p.name === context.name1 ? 'persona' : 'character', name: p.name, appearance: { physicalTraits: p.look, defaultOutfit: p.outfit } }));
         const setBook = mergeSet(knownSet, scene.places);
         const compileCtx = {
             style: settings.promptStyle,
-            presets: settings.promptPresets,
+            presets: effectivePresets(settings),
+            adapter: resolveAdapter(settings),
+            pipeline: directOn ? 'direct' : (momentOn ? 'moment' : 'classic'),
             cast,
             setBook,
             world,
             setting: scene.setting,
             personaName: context.name1,
             povMode: Boolean(settings.playerPov),
+            pov: Boolean(settings.playerPov),
         };
         const tools = {
-            promptFor: (spec, camera) => compileFrame(spec, camera, compileCtx),
-            expectFor: (spec, camera) => frameExpectation(spec, camera, compileCtx),
+            // The new path draws every frame once, as laid out: no close-up crops, no tall-frame crops (those were Anima patches).
+            direct: directOn,
+            cropFrames: !(directOn || momentOn),
+            promptFor: directOn
+                ? (spec, camera) => [assembleDirectFrame(frameOfBeat(spec, camera), { ...compileCtx, frameIndex: spec?.frameIndex }).prompt]
+                : (spec, camera) => compileFrame(spec, camera, compileCtx),
+            expectFor: directOn
+                ? (spec, camera) => directExpectation(spec, camera, compileCtx)
+                : (spec, camera) => frameExpectation(spec, camera, compileCtx),
             labelOf: (name) => findPerson(cast, name)?.label || null,
             nameOf: (label) => cast.find((p) => p.label === label)?.name || null,
             refsFor: async (names) => referencesForFrame(context, settings, names, cast, compileCtx),
             usage,
         };
 
-        const plan = planPanels(scene, {
+        // A page planned by an earlier version is redrawn the way it was planned (it has no Direct frames to draw from).
+        const withCards = directOn ? 0 : (scene.beats || []).filter((b) => b && readMoment(b)).length;
+        const pipelineNote = earlierScene
+            ? `This page was planned by an earlier version (${momentOn ? 'moment cards' : 'classic'}); "Redraw images" draws it again the way it was planned. Use "Draw again" to have the story read again by the current planner.`
+            : (scene.warnings?.length ? `The reader was asked once to fix these and kept them: ${scene.warnings.join(' | ')}` : null);
+        const plan = planPanels(directOn || momentOn ? scene : withoutMoments(scene), {
             maxPanels: settings.maxPanels,
             fullBleedCooldown: settings.fullBleedCooldown,
             sinceFullBleed: messagesSinceFullBleed(context.chat, messageId, 50, pendingFullBleed),
@@ -258,7 +285,8 @@ async function processMessage(messageId, { force = false, redraw = false } = {})
             maxImages: settings.maxImages,
             playerName: context.name1,
             seed: hash,
-            establishingHint: wantsEstablishing(text, sceneContext?.playerAction),
+            // Direct adds no frame of its own: an establishing view is drawn when the reader wrote one.
+            establishingHint: directOn ? false : wantsEstablishing(text, sceneContext?.playerAction),
             webtoon: Boolean(settings.webtoonMode),
         });
         if (plan.some((step) => step.fullBleed)) pendingFullBleed.add(message);
@@ -308,6 +336,12 @@ async function processMessage(messageId, { force = false, redraw = false } = {})
             cast,
             world: world ? { summary: world.summary, era_and_technology: world.era_and_technology } : null,
             promptStyle: settings.promptStyle,
+            modelAdapter: resolveAdapter(settings).id,
+            styleProfile: settings.styleProfile || null,
+            pipeline: directOn ? 'direct' : (momentOn ? 'moment' : 'classic'),
+            directVersion: directOn ? DIRECT_VERSION : undefined,
+            momentCards: withCards,
+            pipelineNote,
             positivePrompt: (first.promptChunks || []).join('\nBREAK\n'),
             negativePrompt: withSafetyNegative(settings.comfy.negativePrompt, settings.comfy.modelNegative),
             modelProfile: settings.customWorkflow?.enabled ? `custom workflow: ${settings.customWorkflow.name}` : (getActiveProfile(settings)?.name || null),
@@ -362,6 +396,8 @@ let referenceUnavailable = false;
  * workflow they are made only when that workflow takes them (%reference%, e.g. an IP-Adapter). */
 async function referencesForFrame(context, settings, names, cast, compileCtx) {
     if (!settings.characterReference || referenceUnavailable) return [];
+    // The built-in workflow's reference nodes belong to one model (Anima's in-context nodes): another adapter has none.
+    if (!settings.customWorkflow?.enabled && resolveAdapter(settings).caps.characterReference !== 'anima-incontext') return [];
     if (settings.customWorkflow?.enabled) {
         try {
             if (!wantsReference((await loadCustomWorkflow(settings.comfy.url, settings.customWorkflow.name)).api)) return [];
@@ -474,7 +510,7 @@ function namedHeads(heads, tools) {
  */
 async function drawBeat(context, settings, { spec, camera, size, aspect, focusName }, tools) {
     const personaName = SillyTavern.getContext().name1;
-    const d = drawPlanFor({ spec, camera, size, aspect, focusName }, { personaName });
+    const d = drawPlanFor({ spec, camera, size, aspect, focusName }, { personaName, cropFrames: tools.cropFrames !== false });
     if (d.mode === 'closeByCrop') {
         const r = await generateChecked(context, settings, { chunks: tools.promptFor(d.spec, d.camera), width: d.width, height: d.height, expectation: tools.expectFor(d.spec, d.camera), names: d.refNames }, tools);
         const t0 = performance.now();
@@ -495,13 +531,14 @@ async function drawBeat(context, settings, { spec, camera, size, aspect, focusNa
     }
     const chunks = tools.promptFor(d.spec, d.camera);
     const expectation = tools.expectFor(d.spec, d.camera);
-    const vary = (attempt, last) => {
+    // Direct redraws the same prompt with a new seed: it has no side-swapping or divider-removal variants (those were model patches).
+    const vary = tools.direct ? null : (attempt, last) => {
         const spec = redrawVariant(d.spec, attempt, last?.reasons);
         return spec === d.spec ? null : { chunks: tools.promptFor(spec, d.camera), expectation: tools.expectFor(spec, d.camera) };
     };
     let r = await generateChecked(context, settings, { chunks, width: d.width, height: d.height, expectation, names: d.refNames, vary }, tools);
     // A hands insert that failed every look is drawn once more as a medium shot of the person (see fallbackFromInsert).
-    const fallback = r.check && !r.check.pass && settings.insertFallback !== false ? fallbackFromInsert(d.spec, d.camera) : null;
+    const fallback = !tools.direct && r.check && !r.check.pass && settings.insertFallback !== false ? fallbackFromInsert(d.spec, d.camera) : null;
     if (fallback) {
         try {
             const alt = await generateChecked(context, settings, { chunks: tools.promptFor(fallback.spec, fallback.camera), width: d.width, height: d.height, expectation: tools.expectFor(fallback.spec, fallback.camera), names: d.refNames }, tools);
@@ -992,12 +1029,13 @@ async function loadSettingsUi(context, settings) {
     refreshWorkflowList();
     // One prefix/suffix pair, for the way of writing that is chosen.
     const PROMPT_STYLE_HINTS = {
-        tags: 'A comma-separated tag list: Illustrious, NoobAI, other SDXL anime models.',
-        tags_pony: 'Tag list that starts with score_9, score_8_up ...: Pony models.',
+        tags: 'A comma-separated tag list: Illustrious, NoobAI, other SDXL anime models. The planner writes each picture as sentences, so tag-only models are better served by v1.0.1-beta.',
+        tags_pony: 'Tag list that starts with score_9, score_8_up ...: Pony models. The planner writes each picture as sentences, so tag-only models are better served by v1.0.1-beta.',
         natural: 'Plain sentences: Flux, Qwen-Image, Z-Image, Anima and other models with an LLM text encoder.',
     };
     const showPromptStyle = () => {
-        const preset = settings.promptPresets[settings.promptStyle] || { prefix: '', suffix: '' };
+        // What is actually sent: the look composed for the model adapter (or the user's own words when the look is "custom").
+        const preset = effectivePresets(settings)[settings.promptStyle] || { prefix: '', suffix: '' };
         $('#manga_prompt_style').val(settings.promptStyle);
         $('#manga_prompt_style_hint').text(PROMPT_STYLE_HINTS[settings.promptStyle] || '');
         $('#manga_prompt_prefix').val(preset.prefix);
@@ -1008,15 +1046,46 @@ async function loadSettingsUi(context, settings) {
         showPromptStyle();
         context.saveSettingsDebounced();
     });
+    // Typing in the prompt text makes the user's words the look: what was composed is frozen into the presets first.
+    const takeOwnWords = () => {
+        if (settings.styleProfile === 'custom') return;
+        const composed = effectivePresets(settings);
+        for (const style of Object.keys(composed)) settings.promptPresets[style] = { ...settings.promptPresets[style], ...composed[style] };
+        settings.styleProfile = 'custom';
+        $('#manga_style_profile').val('custom');
+    };
     $('#manga_prompt_prefix').on('input', function () {
+        takeOwnWords();
         settings.promptPresets[settings.promptStyle].prefix = String($(this).val());
         context.saveSettingsDebounced();
     });
     $('#manga_prompt_suffix').on('input', function () {
+        takeOwnWords();
         settings.promptPresets[settings.promptStyle].suffix = String($(this).val());
         context.saveSettingsDebounced();
     });
     showPromptStyle();
+    // Model adapter, look, artist and planning mode.
+    $('#manga_model_adapter').empty().append($('<option>', { value: '' }).text('Automatic (from the way prompts are written)'));
+    for (const a of Object.values(ADAPTERS)) $('#manga_model_adapter').append($('<option>', { value: a.id }).text(a.name));
+    $('#manga_style_profile').empty();
+    for (const s of Object.values(STYLE_PROFILES)) $('#manga_style_profile').append($('<option>', { value: s.id }).text(s.name));
+    $('#manga_style_profile').append($('<option>', { value: 'custom' }).text('My own words (Prompt text below)'));
+    $('#manga_model_adapter').val(settings.modelAdapter || '').on('change', function () {
+        settings.modelAdapter = String($(this).val());
+        showPromptStyle();
+        context.saveSettingsDebounced();
+    });
+    $('#manga_style_profile').val(settings.styleProfile || 'webtoon-color').on('change', function () {
+        settings.styleProfile = String($(this).val());
+        showPromptStyle();
+        context.saveSettingsDebounced();
+    });
+    $('#manga_artist_style').val(settings.artistStyle || '').on('input', function () {
+        settings.artistStyle = String($(this).val());
+        showPromptStyle();
+        context.saveSettingsDebounced();
+    });
 
     // Model profiles: pick one to fill the ComfyUI fields and the Prompt Style from it.
     const comfyFields = {
