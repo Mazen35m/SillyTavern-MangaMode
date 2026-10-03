@@ -77,7 +77,8 @@ export const DEFAULT_SETTINGS = {
     splitDialogueThreshold: 5,
     /** Give the scene parser the player's last message + the previous reply's tail as context. */
     sceneContext: true,
-    promptStyle: PROMPT_STYLES.TAGS,
+    // Defaults match the tested setup: Anima Turbo v1.1 (files in DOWNLOADS.md). Other models: Advanced settings, or pick a saved model profile.
+    promptStyle: PROMPT_STYLES.NATURAL,
     promptPresets: {
         [PROMPT_STYLES.TAGS]: {
             prefix: '',
@@ -88,7 +89,7 @@ export const DEFAULT_SETTINGS = {
             suffix: 'colored manhwa style, webtoon illustration, full color, clean digital lineart, cel shading, vibrant colors',
         },
         [PROMPT_STYLES.NATURAL]: {
-            prefix: 'A high quality colored webtoon/manhwa-style illustration.',
+            prefix: 'masterpiece, best quality, score_7, A colored webtoon manhwa illustration.',
             suffix: 'Clean digital lineart, cel shading, vibrant full color.',
         },
     },
@@ -98,23 +99,23 @@ export const DEFAULT_SETTINGS = {
     comfy: {
         url: 'http://127.0.0.1:8188',
         /** Workflow family: 'checkpoint' (single file) or 'split' (diffusion model + text encoder + VAE). */
-        family: 'checkpoint',
-        checkpoint: 'illustriousXL_v01.safetensors',
+        family: 'split',
+        checkpoint: '',
         /** 'split' family only. */
-        unet: '',
+        unet: 'anima-turbo-v1.1.safetensors',
         unetDtype: 'default',
-        clip: '',
+        clip: 'qwen_3_06b_base.safetensors',
         clipType: 'stable_diffusion',
         /** Optional separate VAE (required for 'split'; overrides the checkpoint's own VAE if set). */
-        vae: '',
+        vae: 'qwen_image_vae.safetensors',
         /** Negative terms a specific model needs (e.g. Anima's score_1-3); set by its profile. */
-        modelNegative: '',
+        modelNegative: 'score_1, score_2, score_3',
         /** LoRAs chained on the model: "file.safetensors:0.8, other.safetensors" (models/loras). */
         loras: '',
-        sampler: 'euler_ancestral',
-        scheduler: 'karras',
-        steps: 28,
-        cfg: 6,
+        sampler: 'er_sde',
+        scheduler: 'simple',
+        steps: 10,
+        cfg: 1,
         width: 896,
         height: 1152,
         /** Longest a single ComfyUI job may take before it is retried once. */

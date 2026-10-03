@@ -12,14 +12,14 @@ Source: https://huggingface.co/circlestone-labs/Anima - open `split_files` and d
 | `qwen_3_06b_base.safetensors` (text encoder) | `ComfyUI/models/text_encoders` |
 | `qwen_image_vae.safetensors` (VAE) | `ComfyUI/models/vae` |
 
-On an RTX 3070 (8 GB) this runs at about 6 s per picture. Any other model works too (SDXL, Illustrious, NoobAI, Pony, Flux,
+These are the defaults of Manga Mode: with the three files in place it draws with the built-in workflow, no setup. On an RTX 3070 (8 GB) this runs at about 6 s per picture. Any other model works too (SDXL, Illustrious, NoobAI, Pony, Flux,
 Qwen-Image, Z-Image): pick its prompt style in the panel and fill in its files under Advanced settings, or use your own workflow.
 
 Optional, slower but with better prompt following: `anima-aesthetic-v1.1.safetensors` from the same folder (30 steps, CFG 4-5).
 
 ## ComfyUI nodes
 
-- **ComfyUI-Easy-Use** (for the detail pass): ComfyUI-Manager -> Install via Git URL, or https://github.com/yolain/ComfyUI-Easy-Use
+- All of these are optional. **ComfyUI-Easy-Use** (for the detail pass): ComfyUI-Manager -> Install via Git URL, or https://github.com/yolain/ComfyUI-Easy-Use
 - **ComfyUI-MangaMode-Bridge** (to use your own workflows): copy the `comfyui-bridge` folder of this repository to `ComfyUI/custom_nodes/`
   and rename it `ComfyUI-MangaMode-Bridge` (see the README).
 

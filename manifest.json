@@ -8,7 +8,7 @@
     "js": "index.js",
     "css": "style.css",
     "author": "Mazen35m",
-    "version": "1.0.0-beta",
+    "version": "1.0.1-beta",
     "homePage": "https://github.com/Mazen35m/SillyTavern-MangaMode",
     "hooks": {
         "activate": "init"

@@ -4,7 +4,7 @@
 You chat as usual. After every character reply, Manga Mode turns that reply into a colored manhwa / webtoon page:
 the pictures are drawn on your own PC, and the dialogue appears as speech balloons on top of them.
 
-**Status: 1.0 beta** - the first public release. It works and has been tested live, but it is a beta (see "Honest limits" below).
+**Status: 1.0.1 beta** - early public release. It works and has been tested live, but it is a beta (see "Honest limits" below).
 License: MIT (free to use, change and share).
 
 ## What you get
@@ -47,14 +47,26 @@ webtoon mode, first-person view, balloons, the story-reader profile, the image-m
 
 ## What it needs
 
+**Required (this is the whole default setup):**
+
 | Part | What | Where it goes |
 |---|---|---|
 | SillyTavern | 1.19 or newer | anywhere |
 | ComfyUI | any recent (tested: ComfyUI-Easy-Install, ComfyUI 0.33) | anywhere, must run on http://127.0.0.1:8188 |
-| OpenRouter account | for the scene reader (google/gemini-3.8-flash) and the quality check (also google/gemini-3.8-flash) - about $0.04-0.06 per reply | key goes into SillyTavern |
-| Image model | anima-turbo-v1.1.safetensors + qwen_3_06b_base.safetensors + qwen_image_vae.safetensors | ComfyUI/models/diffusion_models, text_encoders (or clip), vae - links in DOWNLOADS.md |
-| ComfyUI nodes | ComfyUI-Easy-Use (for "easy loadImageBase64") and ComfyUI-Anima_IP-Adapter + ip_adapter-Character_Reference-10.safetensors | custom_nodes / models/ipadapter - links in DOWNLOADS.md |
+| Image model | `anima-turbo-v1.1.safetensors` + `qwen_3_06b_base.safetensors` + `qwen_image_vae.safetensors` | ComfyUI/models/diffusion_models, text_encoders (or clip), vae - links in DOWNLOADS.md |
+| OpenRouter account | for the story reader and the quality check (both google/gemini-3.8-flash) - about $0.04-0.06 per reply | key goes into SillyTavern |
 | Graphics card | tested on an RTX 3070 (8 GB) | |
+
+The defaults of Manga Mode already point at these three Anima Turbo files, so with them in place it draws with the **built-in workflow** - nothing else to build or save in ComfyUI.
+
+**Optional:**
+
+| Part | What it gives you |
+|---|---|
+| ComfyUI-MangaMode-Bridge (the `comfyui-bridge` folder) | lets you pick your own ComfyUI workflow in the panel |
+| ComfyUI-Easy-Use | the "detail pass" (For strong GPUs) |
+| ComfyUI-Anima_IP-Adapter + `ip_adapter-Character_Reference-10.safetensors` | character reference pictures (For strong GPUs) |
+| Another image model | pick its prompt style in the panel and fill in its files under Advanced settings (a saved "Illustrious-XL" profile is included as an example) |
 
 ## Install from zero (in this order)
 
@@ -62,25 +74,21 @@ webtoon mode, first-person view, balloons, the story-reader profile, the image-m
    repository -> Mazen35m/SillyTavern-MangaMode, or the green Code button -> Download ZIP.
    Put the folder here (the folder name must be exactly `SillyTavern-MangaMode`):
    `SillyTavern/public/scripts/extensions/third-party/SillyTavern-MangaMode`
-2. **ComfyUI bridge**: copy the folder `comfyui-bridge` from this repository to
-   `ComfyUI/custom_nodes/` and rename it `ComfyUI-MangaMode-Bridge`. Open its
-   `mangamode_bridge.json` and write your SillyTavern folder (the one with Start.bat), e.g.
-   `{"sillytavern": "C:\\path\\to\\SillyTavern"}`
-3. **ComfyUI nodes and models**: install ComfyUI-Easy-Use and ComfyUI-Anima_IP-Adapter (ComfyUI
-   Manager -> Install via Git URL), download the model files listed in `DOWNLOADS.md` into the
-   folders shown there. Restart ComfyUI.
-4. **Workflows**: in ComfyUI drag in `workflows/comfyui-ui/the true one + IP-Adapter.json`
-   (and `the true one.json`), then press Ctrl+S on each. The bridge copies them to SillyTavern.
-5. **SillyTavern connection**: API Connections -> Chat Completion -> OpenRouter, paste your
+2. **Image model**: download the three Anima Turbo files listed in `DOWNLOADS.md` into the ComfyUI folders shown there. Start (or restart) ComfyUI.
+3. **SillyTavern connection**: API Connections -> Chat Completion -> OpenRouter, paste your
    OpenRouter key, model google/gemini-3.8-flash, then Connection Profiles -> save it as
    **Manga Parser** (the profile settings are in `recommended-settings.json` -> `mangaParserConnectionProfile`).
-6. Start SillyTavern, open Extensions -> Manga Mode (the defaults are fine; optional: the next section)
-   and check: Enabled, scene parser profile = Manga Parser, Workflow = the workflow you saved in step 4 (if you have only one, it is picked for you), Quality check ticked.
-7. Chat. Each character reply gets a page; the image button on a message draws or redraws it.
+4. Start SillyTavern, open Extensions -> Manga Mode and check: Enabled, scene parser profile = Manga Parser, Workflow = "Built-in workflow", Quality check ticked.
+5. Chat. Each character reply gets a page; the image button on a message draws or redraws it.
+
+**Want to use your own ComfyUI workflow (optional)?** Copy the folder `comfyui-bridge` to `ComfyUI/custom_nodes/` and rename it
+`ComfyUI-MangaMode-Bridge`. Open its `mangamode_bridge.json` and write your SillyTavern folder (the one with Start.bat), e.g.
+`{"sillytavern": "C:\\path\\to\\SillyTavern"}`. Restart ComfyUI, then save your workflow in ComfyUI (Ctrl+S): it shows up in the Workflow list in Manga Mode
+(if you have only one saved, it is picked for you; choose "Built-in workflow" to go back). Examples to start from are in `workflows/comfyui-ui/`.
 
 ## Recommended settings (optional)
 
-`recommended-settings.json` holds the settings the author uses (no API keys in it). To use them instead of the defaults:
+The defaults already use Anima Turbo. `recommended-settings.json` holds the author's full setup (no API keys in it), which also switches on the slower extras for strong GPUs. To use it instead of the defaults:
 
 1. Close SillyTavern.
 2. Open `SillyTavern/data/default-user/settings.json` in a text editor.

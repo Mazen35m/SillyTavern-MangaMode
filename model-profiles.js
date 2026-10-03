@@ -59,13 +59,23 @@ export function applyProfile(settings, profile) {
 export function ensureProfiles(settings) {
     if (!Array.isArray(settings.modelProfiles)) settings.modelProfiles = [];
     if (!settings.modelProfiles.length) {
+        // New install: the live settings are the tested Anima Turbo setup. Illustrious-XL (a single
+        // checkpoint, tag prompts) is saved next to it as a one-click example of the other family.
         const first = profileFromSettings(settings, {
-            id: 'illustrious-xl-v01',
-            name: 'Illustrious-XL v0.1 (tags)',
-            notes: 'Original setup. Workflow family: checkpoint (workflows/000, 001).',
+            id: 'anima-turbo-v11',
+            name: 'Anima Turbo v1.1 (sentences)',
+            notes: 'Default setup. Workflow family: split. Files and links: DOWNLOADS.md.',
         });
         settings.modelProfiles.push(first);
         settings.activeProfileId = first.id;
+        settings.modelProfiles.push({
+            id: 'illustrious-xl-v01',
+            name: 'Illustrious-XL v0.1 (tags)',
+            promptStyle: 'tags',
+            promptPreset: { prefix: '', suffix: 'masterpiece, best quality, colored manhwa style, webtoon illustration, full color, clean digital lineart, cel shading, vibrant colors' },
+            generation: { family: 'checkpoint', checkpoint: 'illustriousXL_v01.safetensors', unet: '', unetDtype: 'default', clip: '', clipType: 'stable_diffusion', vae: '', sampler: 'euler_ancestral', scheduler: 'karras', steps: 28, cfg: 6, width: 896, height: 1152, modelNegative: '', loras: '' },
+            notes: 'Example of a single-checkpoint model (SDXL / Illustrious / NoobAI). Put your own checkpoint file name in the Image model fields.',
+        });
     }
     if (!settings.modelProfiles.some((p) => p.id === settings.activeProfileId)) {
         settings.activeProfileId = settings.modelProfiles[0].id;
