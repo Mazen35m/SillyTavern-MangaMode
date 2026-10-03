@@ -197,24 +197,44 @@ test('checkpoint family is unchanged unless a separate VAE is given', () => {
     assert.deepEqual(buildComfyWorkflow({ ...base, vae: 'v.safetensors' })['8'].inputs.vae, ['11', 0]);
 });
 
-test('model profiles: first run snapshots the current setup; applying a profile sets its Prompt Style and files', () => {
+test('model profiles: first run saves the Anima Turbo defaults plus an Illustrious example; applying a profile sets its Prompt Style and files', () => {
     const settings = getSettings({});
-    assert.equal(settings.modelProfiles.length, 1);
-    assert.equal(getActiveProfile(settings).promptStyle, 'tags');
-    const anima = { id: 'anima', name: 'Anima', promptStyle: 'natural', generation: { family: 'split', unet: 'a', clip: 'q', clipType: 'stable_diffusion', vae: 'v', sampler: 'er_sde', scheduler: 'simple', steps: 30, cfg: 4, width: 1024, height: 1024, modelNegative: 'score_1' } };
-    settings.modelProfiles.push(anima);
-    applyProfile(settings, anima);
-    assert.equal(settings.promptStyle, 'natural');
+    assert.equal(settings.modelProfiles.length, 2);
+    assert.equal(getActiveProfile(settings).id, 'anima-turbo-v11');
+    assert.equal(getActiveProfile(settings).promptStyle, 'natural');
     assert.equal(settings.comfy.family, 'split');
-    assert.equal(settings.comfy.url, 'http://127.0.0.1:8188', 'server URL stays global');
-    applyProfile(settings, settings.modelProfiles[0]);
+    assert.equal(settings.comfy.unet, 'anima-turbo-v1.1.safetensors');
+    assert.equal(settings.comfy.clip, 'qwen_3_06b_base.safetensors');
+    assert.equal(settings.comfy.vae, 'qwen_image_vae.safetensors');
+    assert.equal(settings.comfy.sampler, 'er_sde');
+    assert.equal(settings.comfy.steps, 10);
+    assert.equal(settings.comfy.cfg, 1);
+    assert.equal(settings.comfy.modelNegative, 'score_1, score_2, score_3');
+    assert.equal(settings.promptStyle, 'natural');
+    const sdxl = settings.modelProfiles.find((p) => p.id === 'illustrious-xl-v01');
+    applyProfile(settings, sdxl);
     assert.equal(settings.promptStyle, 'tags');
     assert.equal(settings.comfy.family, 'checkpoint');
-    assert.equal(profileFromSettings(settings, { name: 'X' }).generation.checkpoint, 'illustriousXL_v01.safetensors');
+    assert.equal(settings.comfy.checkpoint, 'illustriousXL_v01.safetensors');
+    assert.equal(settings.comfy.url, 'http://127.0.0.1:8188', 'server URL stays global');
+    applyProfile(settings, settings.modelProfiles[0]);
+    assert.equal(settings.promptStyle, 'natural');
+    assert.equal(settings.comfy.family, 'split');
+    assert.equal(profileFromSettings(settings, { name: 'X' }).generation.unet, 'anima-turbo-v1.1.safetensors');
     // a profile carries its own quality tags for its style
     const oo = { ...profileFromSettings(settings, { id: 'oo', name: 'OO' }), promptPreset: { prefix: '', suffix: 'masterpiece, very awa' } };
     applyProfile(settings, oo);
-    assert.equal(settings.promptPresets.tags.suffix, 'masterpiece, very awa');
+    assert.equal(settings.promptPresets.natural.suffix, 'masterpiece, very awa');
+});
+
+test('upgrading keeps an existing install exactly as it was (profiles and settings are never replaced)', () => {
+    const old = { mangaMode: { comfy: { family: 'checkpoint', checkpoint: 'mine.safetensors', sampler: 'euler', scheduler: 'normal', steps: 20, cfg: 5 }, promptStyle: 'tags', modelProfiles: [{ id: 'mine', name: 'Mine', promptStyle: 'tags', generation: {} }], activeProfileId: 'mine' } };
+    const s = getSettings(old);
+    assert.equal(s.comfy.checkpoint, 'mine.safetensors');
+    assert.equal(s.comfy.sampler, 'euler');
+    assert.equal(s.promptStyle, 'tags');
+    assert.equal(s.modelProfiles.length, 1);
+    assert.equal(s.activeProfileId, 'mine');
 });
 
 test('model-specific negative terms join the negative prompt', () => {
